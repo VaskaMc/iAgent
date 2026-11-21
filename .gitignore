@@ -1,0 +1,30 @@
+# macOS / Xcode
+.DS_Store
+DerivedData/
+build/
+*.xcuserdata
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Local secrets & signing overrides
+*.p12
+*.mobileprovision
+.env
+.env.local
+Secrets.xcconfig
+
+# Python verification cache
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>tr</string>
+	<key>CFBundleDisplayName</key>
+	<string>iAgent</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>tr</string>
+		<string>az</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.iagent.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>iagent</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>shortcuts</string>
+	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>iAgent, günlük programınızı okumanızı istediğinizde takvim etkinliklerinizi görüntülemek için takvim okuma erişimi ister.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>iAgent, onayladığınız yeni toplantı ve etkinlikleri takviminize eklemek için yalnız yazma erişimi ister.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>iAgent, aynı ada sahip kişiler arasında doğru alıcıyı seçebilmeniz için kişi adlarını ve numaralarını gösterir.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>iAgent, uygulama içinde bas-konuş düğmesiyle sesli istek verebilmeniz için mikrofon erişimi kullanır.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>iAgent, onayladığınız saatli anımsatıcıları ve alarmları kaydetmek için Anımsatıcılar erişimi ister.</string>
+	<key>NSSiriUsageDescription</key>
+	<string>iAgent, Siri üzerinden verdiğiniz komutları alıp yerel eylemlere dönüştürmek için Siri entegrasyonunu kullanır.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>iAgent, uygulama içindeki sesli isteklerinizi yazıya dönüştürmek için cihaz içi konuşma tanıma kullanır.</string>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+</dict>
+</plist>

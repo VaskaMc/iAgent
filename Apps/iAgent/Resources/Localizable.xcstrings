@@ -1,0 +1,91 @@
+{
+  "sourceLanguage" : "tr",
+  "strings" : {
+    "iAgent ile Konuş" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iAgent ilə Danış"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iAgent ile Konuş"
+          }
+        }
+      }
+    },
+    "Ne yapmamı istersin?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nə etməyimi istəyirsən?"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ne yapmamı istersin?"
+          }
+        }
+      }
+    },
+    "${applicationName} ile konuş" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} ilə danış"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} ile konuş"
+          }
+        }
+      }
+    },
+    "${applicationName}'e sor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName}-dən soruş"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName}'e sor"
+          }
+        }
+      }
+    },
+    "${applicationName} not al" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} qeyd et"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} not al"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

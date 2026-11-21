@@ -1,0 +1,40 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  swift-packages:
+    name: Swift Packages (Core, ModelProviders, PhoneActions)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AgentCore tests
+        run: swift test --package-path Packages/AgentCore
+      - name: Run ModelProviders tests
+        run: swift test --package-path Packages/ModelProviders
+      - name: Run PhoneActions tests
+        run: swift test --package-path Packages/PhoneActions
+
+  xcode-ios-app:
+    name: Xcode iOS 26 Build & Tests
+    runs-on: macos-26
+    needs: swift-packages
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Xcode project and schemes
+        run: |
+          xcodebuild -list -project Apps/iAgent/iAgent.xcodeproj
+          xcodebuild -showdestinations -project Apps/iAgent/iAgent.xcodeproj -scheme iAgent
+      - name: Resolve first available iPhone simulator and run tests
+        run: |
+          SIM_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ {print $2; exit}')
+          echo "Using simulator: $SIM_ID"
+          xcodebuild test \
+            -project Apps/iAgent/iAgent.xcodeproj \
+            -scheme iAgent \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            CODE_SIGNING_ALLOWED=NO
