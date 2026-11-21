@@ -8,10 +8,7 @@ struct AskIAgentIntent: AppIntent {
         "Siri veya Kestirmeler aracılığıyla iAgent'e günlük bir görev verir."
     )
 
-    // Kısa ve yetkili işler arka planda tamamlanabilir; etkileşim gerektiğinde ön plana geçilir.
     static let supportedModes: IntentModes = [.background, .foreground(.dynamic)]
-
-    // Genel komut girişi kilit ekranında başlatılabilir; hassas işlemler çekirdekte kilit/doğrulama ister.
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(
@@ -36,14 +33,11 @@ struct AskIAgentIntent: AppIntent {
             resolvedUtterance = try await $utterance.requestValue(IntentDialog("Ne yapmamı istersin?"))
         }
 
-        let responseText = AppCoordinator.shared.handleSiriUtterance(resolvedUtterance)
+        let responseText = await AppCoordinator.shared.submitUserUtterance(resolvedUtterance, source: .siri)
 
-        // Kişi seçimi, mesaj düzenleyicisi veya onay gerektiren durumlarda ön plana geçiş hazır tutulur.
-        let requiresForeground = resolvedUtterance.localizedCaseInsensitiveContains("mesaj")
-            || resolvedUtterance.localizedCaseInsensitiveContains("e-posta")
-            || resolvedUtterance.localizedCaseInsensitiveContains("ara")
-
-        if requiresForeground && systemContext.currentMode.canContinueInForeground {
+        // Kişi seçimi, çok adımlı onay veya sistem düzenleyicisi gerektiren akışta uygulama ön plana getirilir.
+        let needsForeground = AppCoordinator.shared.activePlanState != nil
+        if needsForeground && systemContext.currentMode.canContinueInForeground {
             try await continueInForeground(
                 IntentDialog("Devam etmek için iAgent açılıyor."),
                 alwaysConfirm: false
