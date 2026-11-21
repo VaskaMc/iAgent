@@ -227,10 +227,12 @@ final class VerificationScenariosTests: XCTestCase {
         XCTAssertEqual(locked, .deviceLockedRequiresAuthentication)
 
         backend.state = .denied
-        XCTAssertEqual(await exec.querySchedule(for: nov21, timeZone: bakuTZ, isDeviceLocked: false), .permissionDenied)
+        let denied = await exec.querySchedule(for: nov21, timeZone: bakuTZ, isDeviceLocked: false)
+        XCTAssertEqual(denied, .permissionDenied)
 
         backend.state = .writeOnly
-        XCTAssertEqual(await exec.querySchedule(for: nov21, timeZone: bakuTZ, isDeviceLocked: false), .writeOnlyCannotReadSchedule)
+        let writeOnly = await exec.querySchedule(for: nov21, timeZone: bakuTZ, isDeviceLocked: false)
+        XCTAssertEqual(writeOnly, .writeOnlyCannotReadSchedule)
     }
 
     func test8_ShortcutCancelRenamedAndMissingShareTargetAreHonest() async throws {
