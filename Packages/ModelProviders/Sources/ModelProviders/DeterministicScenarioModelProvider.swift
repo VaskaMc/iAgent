@@ -121,7 +121,7 @@ public final class DeterministicScenarioModelProvider: ModelProvider, @unchecked
         // 5. Destek dışı istekler
         let unsupportedSignals = [
             "instagram", "banka havalesi", "para gonder", "ayarlar uygulamasindaki", "diger uygulamanin butonuna",
-            "ekranina dokun", "whatsapp gecmisini oku", "apple notlarimi sil"
+            "ekranina dokun", "whatsapp gecmisimi oku", "whatsapp gecmisini oku", "apple notlarimi sil"
         ]
         if unsupportedSignals.contains(where: { norm.contains($0) }) {
             return .unsupported(
