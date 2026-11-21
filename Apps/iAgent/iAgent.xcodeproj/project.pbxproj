@@ -11,6 +11,7 @@
 		B10000010000000000000002 /* AskIAgentIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000010000000000000002 /* AskIAgentIntent.swift */; };
 		B10000010000000000000003 /* IAgentShortcutsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000010000000000000003 /* IAgentShortcutsProvider.swift */; };
 		B10000010000000000000004 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F10000010000000000000004 /* Localizable.xcstrings */; };
+		B20000010000000000000001 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = X20000010000000000000001 /* AgentCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B20000010000000000000001 /* AgentCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,6 +96,9 @@
 			dependencies = (
 			);
 			name = iAgent;
+			packageProductDependencies = (
+				X20000010000000000000001 /* AgentCore */,
+			);
 			productName = iAgent;
 			productReference = P10000010000000000000001 /* iAgent.app */;
 			productType = "com.apple.product-type.application";
@@ -123,6 +128,9 @@
 				Base,
 			);
 			mainGroup = G10000010000000000000001;
+			packageReferences = (
+				K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */,
+			);
 			productRefGroup = G10000010000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -256,6 +264,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */ = {
+			isa = PBXLocalSwiftPackageReference;
+			relativePath = ../../Packages/AgentCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		X20000010000000000000001 /* AgentCore */ = {
+			isa = PBXSwiftPackageProductDependency;
+			package = K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */;
+			productName = AgentCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = J10000010000000000000001 /* Project object */;
 }
