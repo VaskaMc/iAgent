@@ -598,15 +598,15 @@
 
 /* Begin XCLocalSwiftPackageReference section */
 		K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */ = {
-			isa = PBXLocalSwiftPackageReference;
+			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Packages/AgentCore;
 		};
 		K20000010000000000000002 /* XCLocalSwiftPackageReference "../../Packages/ModelProviders" */ = {
-			isa = PBXLocalSwiftPackageReference;
+			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Packages/ModelProviders;
 		};
 		K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */ = {
-			isa = PBXLocalSwiftPackageReference;
+			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Packages/PhoneActions;
 		};
 /* End XCLocalSwiftPackageReference section */

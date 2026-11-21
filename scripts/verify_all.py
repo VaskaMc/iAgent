@@ -97,6 +97,10 @@ def check_project_structure() -> list[str]:
     for pkg in ["../../Packages/AgentCore", "../../Packages/ModelProviders", "../../Packages/PhoneActions"]:
         if pkg not in pbx:
             errors.append(f"project.pbxproj missing local package reference {pkg}")
+    if "PBXLocalSwiftPackageReference" in pbx:
+        errors.append("project.pbxproj must use isa = XCLocalSwiftPackageReference (not PBXLocalSwiftPackageReference)")
+    if "isa = XCLocalSwiftPackageReference;" not in pbx:
+        errors.append("project.pbxproj missing isa = XCLocalSwiftPackageReference;")
 
     # Check all Swift file refs inside project.pbxproj exist on disk
     # Files inside Intents/, Speech/, Views/, Diagnostics/, or root Apps/iAgent/, or explicit ../../ paths
