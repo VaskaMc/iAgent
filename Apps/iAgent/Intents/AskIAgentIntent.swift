@@ -8,7 +8,12 @@ struct AskIAgentIntent: AppIntent {
         "Siri veya Kestirmeler aracılığıyla iAgent'e günlük bir görev verir."
     )
 
+    #if compiler(>=6.2)
     static let supportedModes: IntentModes = [.background, .foreground(.dynamic)]
+    #else
+    static let openAppWhenRun: Bool = false
+    #endif
+
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(
@@ -35,6 +40,7 @@ struct AskIAgentIntent: AppIntent {
 
         let responseText = await AppCoordinator.shared.submitUserUtterance(resolvedUtterance, source: .siri)
 
+        #if compiler(>=6.2)
         // Kişi seçimi, çok adımlı onay veya sistem düzenleyicisi gerektiren akışta uygulama ön plana getirilir.
         let needsForeground = AppCoordinator.shared.activePlanState != nil
         if needsForeground && systemContext.currentMode.canContinueInForeground {
@@ -43,6 +49,7 @@ struct AskIAgentIntent: AppIntent {
                 alwaysConfirm: false
             )
         }
+        #endif
 
         return .result(dialog: IntentDialog(stringLiteral: responseText))
     }

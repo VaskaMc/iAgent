@@ -1,0 +1,67 @@
+workflows:
+  ios-sideload-and-tests:
+    name: iAgent iOS Build, Tests & IPA Export
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Run Swift Package Unit Tests
+        script: |
+          swift test --package-path Packages/AgentCore
+          swift test --package-path Packages/ModelProviders
+          swift test --package-path Packages/PhoneActions
+
+      - name: Inspect Xcode Project and Resolve Deployment Target
+        script: |
+          xcodebuild -list -project Apps/iAgent/iAgent.xcodeproj
+          xcodebuild -showdestinations -project Apps/iAgent/iAgent.xcodeproj -scheme iAgent
+          SDK_VER=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "Detected iOS SDK: $SDK_VER"
+          MAJOR_SDK=${SDK_VER%%.*}
+          if [ "$MAJOR_SDK" -lt 26 ]; then
+            echo "DEPLOY_TARGET=18.0" >> "$CM_ENV"
+          else
+            echo "DEPLOY_TARGET=26.0" >> "$CM_ENV"
+          fi
+
+      - name: Run iOS Simulator Tests (iAgentTests)
+        script: |
+          SIM_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ {print $2; exit}')
+          echo "Using simulator: $SIM_ID (target=$DEPLOY_TARGET)"
+          xcodebuild test \
+            -project Apps/iAgent/iAgent.xcodeproj \
+            -scheme iAgent \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            IPHONEOS_DEPLOYMENT_TARGET="$DEPLOY_TARGET" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Build Unsigned Release iAgent.app and Package IPAs
+        script: |
+          xcodebuild build \
+            -project Apps/iAgent/iAgent.xcodeproj \
+            -scheme iAgent \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/DerivedData \
+            IPHONEOS_DEPLOYMENT_TARGET="$DEPLOY_TARGET" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+          APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/iAgent.app"
+          mkdir -p build/ios/ipa build/stage-full/Payload build/stage-sideload/Payload
+
+          # 1. Full IPA (Paylaşım eklentisi dahil — ücretli Apple Developer imzası için)
+          cp -R "$APP_PATH" build/stage-full/Payload/
+          (cd build/stage-full && zip -qr "$CM_BUILD_DIR/build/ios/ipa/iAgent-Full.ipa" Payload)
+
+          # 2. Sideload IPA (PlugIns çıkarılmış — ücretsiz Apple ID + Sideloadly/AltStore için)
+          cp -R "$APP_PATH" build/stage-sideload/Payload/
+          rm -rf build/stage-sideload/Payload/iAgent.app/PlugIns
+          (cd build/stage-sideload && zip -qr "$CM_BUILD_DIR/build/ios/ipa/iAgent-Sideload.ipa" Payload)
+
+          ls -lh build/ios/ipa/
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/DerivedData/Logs/Test/*.xcresult

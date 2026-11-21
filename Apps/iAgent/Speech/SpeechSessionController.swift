@@ -159,10 +159,12 @@ public final class SpeechSessionController: NSObject {
 
     private func isOnDeviceSpeechSupported(for localeIdentifier: String) async -> Bool {
         #if canImport(Speech)
+        #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             let target = Locale(identifier: localeIdentifier)
             return await SpeechTranscriber.supportedLocale(equivalentTo: target) != nil
         }
+        #endif
         return SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier))?.isAvailable ?? false
         #else
         return false

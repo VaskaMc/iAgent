@@ -32,6 +32,7 @@ def check_project_structure() -> list[str]:
     required_files = [
         "plans/IAGENT_ANTIGRAVITY_MASTER_PLAN_TR.md",
         ".github/workflows/ios-ci.yml",
+        "codemagic.yaml",
         "Apps/iAgent/iAgentApp.swift",
         "Apps/iAgent/Intents/AskIAgentIntent.swift",
         "Apps/iAgent/Intents/IAgentShortcutsProvider.swift",
