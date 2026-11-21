@@ -1,0 +1,77 @@
+import Foundation
+import UniformTypeIdentifiers
+import PhoneActions
+
+#if canImport(UIKit)
+import UIKit
+
+/// Paylaş menüsünden gelen UTF-8 metni veya metin dosyasını App Group gelen kutusuna yazar.
+/// Eklenti içinde ağır model çıkarımı çalıştırılmaz; içerik ana uygulamaya devredilir.
+final class ShareViewController: UIViewController {
+    private let statusLabel = UILabel()
+    private let inboxManager = SharedInboxManager(inboxDirectory: SharedInboxManager.defaultInboxDirectory())
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel.text = "iAgent gelen kutusuna aktarılıyor..."
+        statusLabel.textAlignment = .center
+        statusLabel.numberOfLines = 0
+        view.addSubview(statusLabel)
+        NSLayoutConstraint.activate([
+            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
+        ])
+        extractAndPersistSharedText()
+    }
+
+    private func extractAndPersistSharedText() {
+        guard let item = extensionContext?.inputItems.first as? NSExtensionItem,
+              let attachments = item.attachments else {
+            completeExtension(message: "Paylaşılan metin bulunamadı.")
+            return
+        }
+
+        let plainType = UTType.plainText.identifier
+        guard let provider = attachments.first(where: { $0.hasItemConformingToTypeIdentifier(plainType) }) else {
+            completeExtension(message: "İlk sürümde yalnız UTF-8 düz metin paylaşımı desteklenir.")
+            return
+        }
+
+        provider.loadItem(forTypeIdentifier: plainType, options: nil) { [weak self] loaded, error in
+            Task { @MainActor in
+                guard let self else { return }
+                if let error {
+                    self.completeExtension(message: "İçerik okunamadı: \(error.localizedDescription)")
+                    return
+                }
+                do {
+                    if let text = loaded as? String {
+                        _ = try self.inboxManager.enqueueText(text, sourceAppHint: "ShareExtension", now: Date())
+                    } else if let url = loaded as? URL {
+                        let data = try Data(contentsOf: url)
+                        _ = try self.inboxManager.enqueueUTF8Data(data, sourceAppHint: url.lastPathComponent, now: Date())
+                    } else {
+                        self.completeExtension(message: "Desteklenmeyen metin biçimi.")
+                        return
+                    }
+                    self.statusLabel.text = "iAgent gelen kutusuna eklendi. Ana uygulamadan özetleyip not alabilirsiniz."
+                    self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+                } catch {
+                    self.completeExtension(message: "Paylaşım sınırı aşıldı veya UTF-8 geçersiz.")
+                }
+            }
+        }
+    }
+
+    private func completeExtension(message: String) {
+        statusLabel.text = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+        }
+    }
+}
+#endif
