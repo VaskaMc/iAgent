@@ -92,7 +92,12 @@ public final class LiveMapKitBackend: MapsSearchAndHandoffProtocol, @unchecked S
         case .walking: directionsMode = MKLaunchOptionsDirectionsModeWalking
         case .transit: directionsMode = MKLaunchOptionsDirectionsModeTransit
         }
-        return item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: directionsMode])
+        let options = [MKLaunchOptionsDirectionsModeKey: directionsMode]
+        #if os(iOS)
+        return await item.openInMaps(launchOptions: options, from: nil)
+        #else
+        return await item.openInMaps(launchOptions: options)
+        #endif
     }
 }
 #endif

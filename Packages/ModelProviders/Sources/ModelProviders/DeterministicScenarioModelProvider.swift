@@ -209,7 +209,7 @@ public final class DeterministicScenarioModelProvider: ModelProvider, @unchecked
                 RawModelStepInput(
                     id: "mail1",
                     action: "mail.compose",
-                    parameters: ActionParameters(recipientQuery: "Deniz", subject: "Bilgilendirme", body: request.utterance)
+                    parameters: ActionParameters(recipientQuery: "Deniz", body: request.utterance, subject: "Bilgilendirme")
                 )
             ])
         }
