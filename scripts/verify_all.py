@@ -101,6 +101,10 @@ def check_project_structure() -> list[str]:
         errors.append("project.pbxproj must use isa = XCLocalSwiftPackageReference (not PBXLocalSwiftPackageReference)")
     if "isa = XCLocalSwiftPackageReference;" not in pbx:
         errors.append("project.pbxproj missing isa = XCLocalSwiftPackageReference;")
+    for sec_name, body in re.findall(r"/\* Begin (\w+) section \*/(.*?)/\* End \1 section \*/", pbx, re.S):
+        isas = set(re.findall(r"isa = (\w+);", body))
+        if isas != {sec_name}:
+            errors.append(f"project.pbxproj section {sec_name} has mismatched isa values: {sorted(isas)}")
 
     # Check all Swift file refs inside project.pbxproj exist on disk
     # Files inside Intents/, Speech/, Views/, Diagnostics/, or root Apps/iAgent/, or explicit ../../ paths

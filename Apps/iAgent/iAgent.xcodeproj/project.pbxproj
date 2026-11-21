@@ -403,7 +403,7 @@
 
 /* Begin XCBuildConfiguration section */
 		E10000010000000000000001 /* Debug */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -421,7 +421,7 @@
 			name = Debug;
 		};
 		E10000010000000000000002 /* Release */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -436,7 +436,7 @@
 			name = Release;
 		};
 		E10000010000000000000003 /* Debug */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_GENERATION = YES;
 				CODE_SIGN_ENTITLEMENTS = iAgent.entitlements;
@@ -458,7 +458,7 @@
 			name = Debug;
 		};
 		E10000010000000000000004 /* Release */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_GENERATION = YES;
 				CODE_SIGN_ENTITLEMENTS = iAgent.entitlements;
@@ -480,7 +480,7 @@
 			name = Release;
 		};
 		E10000020000000000000001 /* Debug */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ../../Extensions/Share/iAgentShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -500,7 +500,7 @@
 			name = Debug;
 		};
 		E10000020000000000000002 /* Release */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ../../Extensions/Share/iAgentShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -520,7 +520,7 @@
 			name = Release;
 		};
 		E10000030000000000000001 /* Debug */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -538,7 +538,7 @@
 			name = Debug;
 		};
 		E10000030000000000000002 /* Release */ = {
-			isa = PBXBuildConfiguration;
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -559,7 +559,7 @@
 
 /* Begin XCConfigurationList section */
 		C10000010000000000000001 /* Build configuration list for PBXProject "iAgent" */ = {
-			isa = PBXConfigurationList;
+			isa = XCConfigurationList;
 			buildConfigurations = (
 				E10000010000000000000001 /* Debug */,
 				E10000010000000000000002 /* Release */,
@@ -568,7 +568,7 @@
 			defaultConfigurationName = Release;
 		};
 		C10000010000000000000002 /* Build configuration list for PBXNativeTarget "iAgent" */ = {
-			isa = PBXConfigurationList;
+			isa = XCConfigurationList;
 			buildConfigurations = (
 				E10000010000000000000003 /* Debug */,
 				E10000010000000000000004 /* Release */,
@@ -577,7 +577,7 @@
 			defaultConfigurationName = Release;
 		};
 		C10000020000000000000001 /* Build configuration list for PBXNativeTarget "iAgentShareExtension" */ = {
-			isa = PBXConfigurationList;
+			isa = XCConfigurationList;
 			buildConfigurations = (
 				E10000020000000000000001 /* Debug */,
 				E10000020000000000000002 /* Release */,
@@ -586,7 +586,7 @@
 			defaultConfigurationName = Release;
 		};
 		C10000030000000000000001 /* Build configuration list for PBXNativeTarget "iAgentTests" */ = {
-			isa = PBXConfigurationList;
+			isa = XCConfigurationList;
 			buildConfigurations = (
 				E10000030000000000000001 /* Debug */,
 				E10000030000000000000002 /* Release */,
@@ -613,37 +613,37 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		X20000010000000000000001 /* AgentCore */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */;
 			productName = AgentCore;
 		};
 		X20000010000000000000002 /* ModelProviders */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000002 /* XCLocalSwiftPackageReference "../../Packages/ModelProviders" */;
 			productName = ModelProviders;
 		};
 		X20000010000000000000003 /* PhoneActions */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */;
 			productName = PhoneActions;
 		};
 		X20000020000000000000001 /* PhoneActions */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */;
 			productName = PhoneActions;
 		};
 		X20000030000000000000001 /* AgentCore */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */;
 			productName = AgentCore;
 		};
 		X20000030000000000000002 /* ModelProviders */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000002 /* XCLocalSwiftPackageReference "../../Packages/ModelProviders" */;
 			productName = ModelProviders;
 		};
 		X20000030000000000000003 /* PhoneActions */ = {
-			isa = PBXSwiftPackageProductDependency;
+			isa = XCSwiftPackageProductDependency;
 			package = K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */;
 			productName = PhoneActions;
 		};
