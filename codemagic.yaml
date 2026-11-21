@@ -27,7 +27,7 @@ workflows:
 
       - name: Run iOS Simulator Tests (iAgentTests)
         script: |
-          SIM_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ {print $2; exit}')
+          SIM_ID=$(xcrun simctl list devices available | grep -E 'iPhone.*\([0-9A-F-]{36}\)' | head -n1 | grep -Eo '[0-9A-F-]{36}')
           echo "Using simulator: $SIM_ID (target=$DEPLOY_TARGET)"
           xcodebuild test \
             -project Apps/iAgent/iAgent.xcodeproj \

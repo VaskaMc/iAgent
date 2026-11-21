@@ -172,7 +172,7 @@ public final class ExecutionCoordinator: @unchecked Sendable {
         from previous: inout PlanRevision
     ) throws -> PlanRevision {
         previous.isInvalidated = true
-        let updatedRaw = try previous.steps.map { step -> RawModelStepInput in
+        let updatedRaw = previous.steps.map { step -> RawModelStepInput in
             var params = step.parameters
             if step.id == stepId {
                 if let startStr = params.startISO8601,

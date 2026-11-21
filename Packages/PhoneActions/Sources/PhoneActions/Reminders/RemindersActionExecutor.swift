@@ -82,7 +82,7 @@ public final class LiveEventKitRemindersBackend: RemindersBackendProtocol, @unch
     public func authorizationState() async -> RemindersAuthorizationState {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .notDetermined: return .notDetermined
-        case .fullAccess, .authorized: return .fullAccess
+        case .fullAccess: return .fullAccess
         case .denied, .writeOnly: return .denied
         case .restricted: return .restricted
         @unknown default: return .denied

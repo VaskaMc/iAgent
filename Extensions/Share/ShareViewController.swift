@@ -42,18 +42,21 @@ final class ShareViewController: UIViewController {
         }
 
         provider.loadItem(forTypeIdentifier: plainType, options: nil) { [weak self] loaded, error in
+            let loadedText = loaded as? String
+            let loadedURL = loaded as? URL
+            let loadErrorMessage = error?.localizedDescription
             Task { @MainActor in
                 guard let self else { return }
-                if let error {
-                    self.completeExtension(message: "İçerik okunamadı: \(error.localizedDescription)")
+                if let loadErrorMessage {
+                    self.completeExtension(message: "İçerik okunamadı: \(loadErrorMessage)")
                     return
                 }
                 do {
-                    if let text = loaded as? String {
-                        _ = try self.inboxManager.enqueueText(text, sourceAppHint: "ShareExtension", now: Date())
-                    } else if let url = loaded as? URL {
-                        let data = try Data(contentsOf: url)
-                        _ = try self.inboxManager.enqueueUTF8Data(data, sourceAppHint: url.lastPathComponent, now: Date())
+                    if let loadedText {
+                        _ = try self.inboxManager.enqueueText(loadedText, sourceAppHint: "ShareExtension", now: Date())
+                    } else if let loadedURL {
+                        let data = try Data(contentsOf: loadedURL)
+                        _ = try self.inboxManager.enqueueUTF8Data(data, sourceAppHint: loadedURL.lastPathComponent, now: Date())
                     } else {
                         self.completeExtension(message: "Desteklenmeyen metin biçimi.")
                         return

@@ -4,7 +4,7 @@ import AgentCore
 
 private final class RecordingHTTPTransport: HTTPTransportProtocol, @unchecked Sendable {
     var callCount = 0
-    var handler: ((URLRequest, String) throws -> (Data, HTTPURLResponse))?
+    var handler: (@Sendable (URLRequest, String) throws -> (Data, HTTPURLResponse))?
 
     func send(request: URLRequest, allowedHost: String) async throws -> (Data, HTTPURLResponse) {
         callCount += 1

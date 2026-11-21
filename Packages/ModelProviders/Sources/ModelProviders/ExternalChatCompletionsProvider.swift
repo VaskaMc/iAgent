@@ -48,7 +48,7 @@ public final class RedirectBlockingSessionDelegate: NSObject, URLSessionTaskDele
         task: URLSessionTask,
         willPerformHTTPRedirection response: HTTPURLResponse,
         newRequest request: URLRequest,
-        completionHandler: @escaping (URLRequest?) -> Void
+        completionHandler: @escaping @Sendable (URLRequest?) -> Void
     ) {
         let targetHost = request.url?.host?.lowercased() ?? ""
         if targetHost != allowedHost {
@@ -246,10 +246,11 @@ public final class ExternalChatCompletionsProvider: ModelProvider, @unchecked Se
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.httpBody = bodyData
+        let immutableRequest = urlRequest
 
         let work = Task<ModelTurnOutcome, Error> {
             try Task.checkCancellation()
-            let (data, http) = try await transport.send(request: urlRequest, allowedHost: host)
+            let (data, http) = try await transport.send(request: immutableRequest, allowedHost: host)
             if data.count > Self.maxResponseBytes {
                 throw ModelProviderError.payloadTooLarge
             }

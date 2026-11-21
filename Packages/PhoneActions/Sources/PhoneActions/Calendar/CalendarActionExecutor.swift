@@ -117,7 +117,7 @@ public final class LiveEventKitCalendarBackend: CalendarBackendProtocol, @unchec
     public func authorizationState() async -> CalendarAuthorizationState {
         switch EKEventStore.authorizationStatus(for: .event) {
         case .notDetermined: return .notDetermined
-        case .fullAccess, .authorized: return .fullAccess
+        case .fullAccess: return .fullAccess
         case .writeOnly: return .writeOnly
         case .denied: return .denied
         case .restricted: return .restricted
