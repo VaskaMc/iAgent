@@ -13,6 +13,7 @@
 		B10000010000000000000004 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F10000010000000000000004 /* Localizable.xcstrings */; };
 		B20000010000000000000001 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = X20000010000000000000001 /* AgentCore */; };
 		B20000010000000000000002 /* ModelProviders in Frameworks */ = {isa = PBXBuildFile; productRef = X20000010000000000000002 /* ModelProviders */; };
+		B20000010000000000000003 /* PhoneActions in Frameworks */ = {isa = PBXBuildFile; productRef = X20000010000000000000003 /* PhoneActions */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 			files = (
 				B20000010000000000000001 /* AgentCore in Frameworks */,
 				B20000010000000000000002 /* ModelProviders in Frameworks */,
+				B20000010000000000000003 /* PhoneActions in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +103,7 @@
 			packageProductDependencies = (
 				X20000010000000000000001 /* AgentCore */,
 				X20000010000000000000002 /* ModelProviders */,
+				X20000010000000000000003 /* PhoneActions */,
 			);
 			productName = iAgent;
 			productReference = P10000010000000000000001 /* iAgent.app */;
@@ -134,6 +137,7 @@
 			packageReferences = (
 				K20000010000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AgentCore" */,
 				K20000010000000000000002 /* XCLocalSwiftPackageReference "../../Packages/ModelProviders" */,
+				K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */,
 			);
 			productRefGroup = G10000010000000000000005 /* Products */;
 			projectDirPath = "";
@@ -278,6 +282,10 @@
 			isa = PBXLocalSwiftPackageReference;
 			relativePath = ../../Packages/ModelProviders;
 		};
+		K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */ = {
+			isa = PBXLocalSwiftPackageReference;
+			relativePath = ../../Packages/PhoneActions;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -290,6 +298,11 @@
 			isa = PBXSwiftPackageProductDependency;
 			package = K20000010000000000000002 /* XCLocalSwiftPackageReference "../../Packages/ModelProviders" */;
 			productName = ModelProviders;
+		};
+		X20000010000000000000003 /* PhoneActions */ = {
+			isa = PBXSwiftPackageProductDependency;
+			package = K20000010000000000000003 /* XCLocalSwiftPackageReference "../../Packages/PhoneActions" */;
+			productName = PhoneActions;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
