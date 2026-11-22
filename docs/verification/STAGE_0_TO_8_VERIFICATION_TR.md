@@ -2,13 +2,14 @@
 
 Bu belge, ana plandaki her geliştirme aşamasının teslim edilen sürümünü, doğrulama komutlarını, gözlemlenen yerel sonuçları ve Codemagic macOS M2 / Xcode 26.6 + fiziksel iPhone kanıt durumlarını kaydeder.
 
-> **Güncel Doğrulama Durumu (21 Kasım 2026):**
-> - **Yerel Çapraz Platform Kapısı (`scripts/verify_all.py`):** `Structure & Security Checks: PASS`, `9/9` senaryo, `30/30` Türkçe beta, `10/10` Azerbaycanca komut, `0` güvenlik ihlali.
-> - **Codemagic macOS M2 (`Xcode 26.6`, Build #7, Commit `84de471`):**
->   - `Run Swift Package Unit Tests` (`AgentCore`, `ModelProviders`, `PhoneActions`): **PASSED** (`42s`)
->   - `Inspect Xcode Project and Resolve Deployment Target` (`IPHONEOS_DEPLOYMENT_TARGET=26.0`): **PASSED** (`8s`)
->   - `Run iOS Simulator Tests (iAgentTests)` (`VerificationScenariosTests` 9/9 + `BetaEvaluationDatasetTests` 30/30 TR + 10/10 AZ): **PASSED** (`1m 29s`)
->   - `Build Unsigned Release iAgent.app and Package IPAs`: **PASSED** (`23s`) — `iAgent-Full.ipa` (`914.50 KB`) ve `iAgent-Sideload.ipa` (`615.34 KB`) üretildi.
+> **Güncel Doğrulama Durumu (22 Kasım 2026):**
+> - **Yerel Çapraz Platform Kapısı (`scripts/verify_all.py`):** `Structure & Security Checks: PASS`, `Swift Static Invariants: PASS`, `9/9` Bölüm 9 senaryo, `3/3` JARVIS deterministik senaryo, `30/30` Türkçe beta, `10/10` Azerbaycanca komut, `0` güvenlik ihlali.
+> - **Codemagic macOS M2 (`Xcode 26.6`, Build #11, Commit `f74d139` — 3 Bilge + 5 Uzman JARVIS Yükseltmesi):**
+>   - `Run Swift Package Unit Tests` (`set -euo pipefail`, `AgentCore` 14 + `ModelProviders` 13 + `PhoneActions` 17 = **44/44 test**): **PASSED** (`54s`)
+>   - `Inspect Xcode Project and Resolve Deployment Target` (`IPHONEOS_DEPLOYMENT_TARGET=26.0`): **PASSED** (`9s`)
+>   - `Run iOS Simulator Tests (iAgentTests)` (`BetaEvaluationDatasetTests` 30/30 TR + 10/10 AZ + `VerificationScenariosTests` **12/12** = **13/13 test**): **PASSED** (`1m 35s`)
+>   - `Build Unsigned Release iAgent.app and Package IPAs`: **PASSED** (`39s`) — `iAgent-Full.ipa` (`2.08 MB`) ve `iAgent-Sideload.ipa` (`1.37 MB`) üretildi.
+>   - Önceki temel v1.0 sürümü: Codemagic Build #7 (`84de471`, `3m 10s`) — **PASSED**.
 > - **Fiziksel iPhone Donanım Kanıtı:** Cihaz üzerinde imzalı kurulum ve Siri/EventKit/MessageUI/Apple Intelligence canlı denemeleri **`bekliyor`**.
 
 ## Aşama Özeti
