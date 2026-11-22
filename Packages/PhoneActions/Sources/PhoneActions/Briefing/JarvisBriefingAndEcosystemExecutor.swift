@@ -466,9 +466,21 @@ public final class LiveAlarmKitBackend: AlarmBackendProtocol, @unchecked Sendabl
     public func scheduleAlarm(id: UUID, title: String, fireDate: Date) async throws -> AlarmRecord {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let finalTitle = cleanTitle.isEmpty ? "iAgent Alarm" : cleanTitle
-        let alert = AlarmPresentation.Alert(
-            title: LocalizedStringResource(stringLiteral: finalTitle)
-        )
+        let alert: AlarmPresentation.Alert
+        if #available(iOS 26.1, *) {
+            alert = AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: finalTitle)
+            )
+        } else {
+            alert = AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: finalTitle),
+                stopButton: AlarmButton(
+                    text: LocalizedStringResource("Durdur"),
+                    textColor: .white,
+                    systemImageName: "stop.fill"
+                )
+            )
+        }
         let presentation = AlarmPresentation(alert: alert)
         let attributes = AlarmAttributes(
             presentation: presentation,
