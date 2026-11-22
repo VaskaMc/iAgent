@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import AgentCore
 
 #if canImport(EventKit)
@@ -19,13 +20,37 @@ public struct CalendarEventRecord: Codable, Equatable, Sendable, Identifiable {
     public let startDate: Date
     public let endDate: Date
     public let calendarTitle: String
+    public let location: String?
+    public let eventRevisionHash: String?
 
-    public init(id: String, title: String, startDate: Date, endDate: Date, calendarTitle: String) {
+    public init(
+        id: String,
+        title: String,
+        startDate: Date,
+        endDate: Date,
+        calendarTitle: String,
+        location: String? = nil,
+        eventRevisionHash: String? = nil
+    ) {
         self.id = id
         self.title = title
         self.startDate = startDate
         self.endDate = endDate
         self.calendarTitle = calendarTitle
+        self.location = location
+        self.eventRevisionHash = eventRevisionHash
+    }
+
+    public static func computeRevisionHash(
+        id: String,
+        title: String,
+        startDate: Date,
+        endDate: Date,
+        location: String?
+    ) -> String {
+        let payload = "\(id)|\(title)|\(Int64(startDate.timeIntervalSince1970))|\(Int64(endDate.timeIntervalSince1970))|\(location ?? "")"
+        let digest = SHA256.hash(data: Data(payload.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -128,12 +153,22 @@ public final class LiveEventKitCalendarBackend: CalendarBackendProtocol, @unchec
     public func fetchEvents(from start: Date, to end: Date) async throws -> [CalendarEventRecord] {
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
         return store.events(matching: predicate).map { ev in
-            CalendarEventRecord(
-                id: ev.eventIdentifier ?? UUID().uuidString,
-                title: ev.title ?? "",
+            let eventId = ev.eventIdentifier ?? UUID().uuidString
+            let title = ev.title ?? ""
+            return CalendarEventRecord(
+                id: eventId,
+                title: title,
                 startDate: ev.startDate,
                 endDate: ev.endDate,
-                calendarTitle: ev.calendar?.title ?? ""
+                calendarTitle: ev.calendar?.title ?? "",
+                location: ev.location,
+                eventRevisionHash: CalendarEventRecord.computeRevisionHash(
+                    id: eventId,
+                    title: title,
+                    startDate: ev.startDate,
+                    endDate: ev.endDate,
+                    location: ev.location
+                )
             )
         }
     }
@@ -250,6 +285,19 @@ public final class CalendarActionExecutor: @unchecked Sendable {
             } catch {
                 return .failed(error.localizedDescription)
             }
+        }
+    }
+
+    public func deleteEvent(identifier: String) async -> Bool {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let auth = await backend.authorizationState()
+        guard auth == .fullAccess || auth == .writeOnly else { return false }
+        do {
+            try await backend.deleteEvent(identifier: trimmed)
+            return true
+        } catch {
+            return false
         }
     }
 }

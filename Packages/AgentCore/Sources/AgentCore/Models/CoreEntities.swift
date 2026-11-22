@@ -70,14 +70,21 @@ public enum ActionKind: String, Codable, CaseIterable, Sendable {
     case calendarRead = "calendar.read"
     case calendarCreate = "calendar.create"
     case remindersCreate = "reminders.create"
+    case remindersRead = "reminders.read"
     case messagesCompose = "messages.compose"
     case mailCompose = "mail.compose"
     case shareSheet = "share.sheet"
     case phoneCall = "phone.call"
     case mapsDirections = "maps.directions"
+    case mapsEstimateETA = "maps.estimateETA"
     case shortcutsRun = "shortcuts.run"
     case textSummarizeAndNote = "text.summarizeAndNote"
     case assistantReply = "assistant.reply"
+    case briefingCompose = "briefing.compose"
+    case memoryRemember = "memory.remember"
+    case memoryRecall = "memory.recall"
+    case memoryForget = "memory.forget"
+    case alarmCreate = "alarm.create"
 }
 
 public enum ConfirmationKind: String, Codable, Sendable, Equatable {

@@ -35,6 +35,124 @@ public struct RawModelStepInput: Codable, Equatable, Sendable {
     }
 }
 
+/// Tüm adım ve parametre alanlarını tip-etiketli / uzunluk-önekli kanonik SHA-256 ile özetler.
+/// `nil`, `""` ve `0` değerlerinin çarpışmasını tamamen önler.
+public enum CanonicalApprovalDigest {
+    private static let domainTag = Data("iAgent.CanonicalApprovalDigest.v2\0".utf8)
+
+    public static func compute(
+        taskId: UUID,
+        revisionNumber: Int,
+        steps: [ActionStep]
+    ) -> String {
+        var buffer = Data()
+        buffer.append(domainTag)
+        appendString(taskId.uuidString, to: &buffer)
+        appendInt(revisionNumber, to: &buffer)
+        appendInt(steps.count, to: &buffer)
+
+        for step in steps {
+            appendString(step.id, to: &buffer)
+            appendString(step.action.rawValue, to: &buffer)
+            appendString(step.confirmationKind.rawValue, to: &buffer)
+            appendBool(step.isUndoable, to: &buffer)
+            appendStringArray(step.dependsOn, to: &buffer)
+
+            let p = step.parameters
+            appendOptionalString(p.title, to: &buffer)
+            appendOptionalString(p.noteContent, to: &buffer)
+            appendOptionalString(p.query, to: &buffer)
+            appendOptionalString(p.startISO8601, to: &buffer)
+            appendOptionalInt(p.durationMinutes, to: &buffer)
+            appendOptionalString(p.dueISO8601, to: &buffer)
+            appendOptionalString(p.recipientQuery, to: &buffer)
+            appendOptionalString(p.resolvedRecipientHandle, to: &buffer)
+            appendOptionalString(p.body, to: &buffer)
+            appendOptionalString(p.subject, to: &buffer)
+            appendOptionalString(p.destinationQuery, to: &buffer)
+            appendOptionalString(p.transportMode, to: &buffer)
+            appendOptionalString(p.shortcutLabel, to: &buffer)
+            appendOptionalString(p.shortcutInput, to: &buffer)
+            appendOptionalString(p.untrustedSourceText, to: &buffer)
+            appendOptionalString(p.urlString, to: &buffer)
+            appendBool(p.locationRequested, to: &buffer)
+        }
+
+        let hash = SHA256.hash(data: buffer)
+        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+
+    public static func rebuildRevisionWithUpdatedSteps(
+        from previous: inout PlanRevision,
+        transform: ([ActionStep]) throws -> [ActionStep],
+        now: Date = Date()
+    ) rethrows -> PlanRevision {
+        previous.isInvalidated = true
+        let updatedSteps = try transform(previous.steps)
+        let nextRevisionNumber = previous.revisionNumber + 1
+        let digest = compute(
+            taskId: previous.taskId,
+            revisionNumber: nextRevisionNumber,
+            steps: updatedSteps
+        )
+        return PlanRevision(
+            revisionNumber: nextRevisionNumber,
+            taskId: previous.taskId,
+            steps: updatedSteps,
+            approvalDigest: digest,
+            isInvalidated: false,
+            createdAt: now
+        )
+    }
+
+    private static func appendString(_ value: String, to buffer: inout Data) {
+        buffer.append(0x53) // 'S'
+        let utf8 = Data(value.utf8)
+        appendUInt64(UInt64(utf8.count), to: &buffer)
+        buffer.append(utf8)
+    }
+
+    private static func appendOptionalString(_ value: String?, to buffer: inout Data) {
+        if let value {
+            appendString(value, to: &buffer)
+        } else {
+            buffer.append(0x4E) // 'N'
+        }
+    }
+
+    private static func appendInt(_ value: Int, to buffer: inout Data) {
+        buffer.append(0x49) // 'I'
+        var bigEndian = Int64(value).bigEndian
+        withUnsafeBytes(of: &bigEndian) { buffer.append(contentsOf: $0) }
+    }
+
+    private static func appendOptionalInt(_ value: Int?, to buffer: inout Data) {
+        if let value {
+            appendInt(value, to: &buffer)
+        } else {
+            buffer.append(0x4E) // 'N'
+        }
+    }
+
+    private static func appendBool(_ value: Bool, to buffer: inout Data) {
+        buffer.append(0x42) // 'B'
+        buffer.append(value ? 0x01 : 0x00)
+    }
+
+    private static func appendStringArray(_ values: [String], to buffer: inout Data) {
+        buffer.append(0x41) // 'A'
+        appendUInt64(UInt64(values.count), to: &buffer)
+        for item in values {
+            appendString(item, to: &buffer)
+        }
+    }
+
+    private static func appendUInt64(_ value: UInt64, to buffer: inout Data) {
+        var bigEndian = value.bigEndian
+        withUnsafeBytes(of: &bigEndian) { buffer.append(contentsOf: $0) }
+    }
+}
+
 /// Model veya kural tabanlı ayrıştırıcıdan gelen adımları şemaya göre doğrular.
 public enum PlanValidator {
     private static let allowedURLSchemes = Set(["tel", "telprompt", "shortcuts", "maps", "whatsapp"])
@@ -98,14 +216,11 @@ public enum PlanValidator {
         revisionNumber: Int,
         steps: [ActionStep]
     ) -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        let payload = steps.map {
-            "\($0.id)|\($0.action.rawValue)|\($0.parameters.title ?? "")|\($0.parameters.startISO8601 ?? "")|\($0.parameters.durationMinutes ?? 0)|\($0.parameters.dueISO8601 ?? "")|\($0.parameters.recipientQuery ?? "")|\($0.parameters.resolvedRecipientHandle ?? "")|\($0.parameters.body ?? "")|\($0.parameters.shortcutLabel ?? "")|\($0.dependsOn.joined(separator: ","))"
-        }.joined(separator: ";")
-        let full = "\(taskId.uuidString)#\(revisionNumber)#\(payload)"
-        let hash = SHA256.hash(data: Data(full.utf8))
-        return hash.map { String(format: "%02x", $0) }.joined()
+        CanonicalApprovalDigest.compute(
+            taskId: taskId,
+            revisionNumber: revisionNumber,
+            steps: steps
+        )
     }
 
     private static func validateStepParameters(_ step: ActionStep) throws {
@@ -121,6 +236,12 @@ public enum PlanValidator {
         switch step.action {
         case .notesCreate, .textSummarizeAndNote:
             if (params.noteContent ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw PlanValidationError.missingRequiredParameter(stepId: step.id, parameter: "noteContent")
+            }
+        case .memoryRemember:
+            let hasContent = !(params.noteContent ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasQuery = !(params.query ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if !hasContent && !hasQuery {
                 throw PlanValidationError.missingRequiredParameter(stepId: step.id, parameter: "noteContent")
             }
         case .calendarCreate:
@@ -144,7 +265,7 @@ public enum PlanValidator {
             guard let due = params.dueISO8601, parseISO8601(due) != nil else {
                 throw PlanValidationError.invalidDateFormat(stepId: step.id, value: params.dueISO8601 ?? "")
             }
-        case .mapsDirections:
+        case .mapsDirections, .mapsEstimateETA:
             if (params.destinationQuery ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 throw PlanValidationError.missingRequiredParameter(stepId: step.id, parameter: "destinationQuery")
             }
@@ -174,7 +295,11 @@ public enum PlanValidator {
                 if claimsWrite {
                     let hasWriteDep = step.dependsOn.contains { depId in
                         guard let depStep = stepMap[depId] else { return false }
-                        return depStep.action == .calendarCreate || depStep.action == .remindersCreate
+                        return depStep.action == .calendarCreate
+                            || depStep.action == .remindersCreate
+                            || depStep.action == .alarmCreate
+                            || depStep.action == .notesCreate
+                            || depStep.action == .memoryRemember
                     }
                     if !hasWriteDep {
                         throw PlanValidationError.causalClaimWithoutDependency(stepId: step.id)

@@ -1,4 +1,5 @@
 import Foundation
+import AgentCore
 
 #if canImport(MapKit)
 import MapKit
@@ -37,14 +38,29 @@ public protocol MapsSearchAndHandoffProtocol: Sendable {
     func openInMaps(destination: MapDestinationCandidate, mode: MapsTransportMode) async -> Bool
 }
 
-public final class InMemoryMapsBackend: MapsSearchAndHandoffProtocol, @unchecked Sendable {
+public protocol ETACalculatingBackendProtocol: Sendable {
+    func estimateTravelMinutes(destinationQuery: String, mode: MapsTransportMode) async -> Int?
+}
+
+public final class InMemoryMapsBackend: MapsSearchAndHandoffProtocol, ETACalculatingBackendProtocol, @unchecked Sendable {
     public var placesByQuery: [String: [MapDestinationCandidate]] = [:]
+    public var etaMinutesByQuery: [String: Int] = [:]
+    public var etaMinutesByDestinationId: [String: Int] = [:]
+    public var defaultEstimatedMinutes: Int?
     public var locationPermissionRequested = false
     public var lastOpenedDestination: MapDestinationCandidate?
     public var lastOpenedMode: MapsTransportMode?
 
-    public init(placesByQuery: [String: [MapDestinationCandidate]] = [:]) {
+    public init(
+        placesByQuery: [String: [MapDestinationCandidate]] = [:],
+        etaMinutesByQuery: [String: Int] = [:],
+        etaMinutesByDestinationId: [String: Int] = [:],
+        defaultEstimatedMinutes: Int? = nil
+    ) {
         self.placesByQuery = placesByQuery
+        self.etaMinutesByQuery = etaMinutesByQuery
+        self.etaMinutesByDestinationId = etaMinutesByDestinationId
+        self.defaultEstimatedMinutes = defaultEstimatedMinutes
     }
 
     public func searchPlaces(query: String) async throws -> [MapDestinationCandidate] {
@@ -56,10 +72,27 @@ public final class InMemoryMapsBackend: MapsSearchAndHandoffProtocol, @unchecked
         lastOpenedMode = mode
         return true
     }
+
+    public func estimateTravelMinutes(destinationQuery: String, mode: MapsTransportMode) async -> Int? {
+        if let exact = etaMinutesByQuery[destinationQuery] {
+            return exact
+        }
+        let normalizedQuery = TurkicTextNormalizer.normalize(destinationQuery.trimmingCharacters(in: .whitespacesAndNewlines))
+        if let normalizedMatch = etaMinutesByQuery.first(where: {
+            TurkicTextNormalizer.normalize($0.key.trimmingCharacters(in: .whitespacesAndNewlines)) == normalizedQuery
+        })?.value {
+            return normalizedMatch
+        }
+        if let candidate = placesByQuery[destinationQuery]?.first,
+           let byId = etaMinutesByDestinationId[candidate.id] {
+            return byId
+        }
+        return defaultEstimatedMinutes
+    }
 }
 
 #if canImport(MapKit)
-public final class LiveMapKitBackend: MapsSearchAndHandoffProtocol, @unchecked Sendable {
+public final class LiveMapKitBackend: MapsSearchAndHandoffProtocol, ETACalculatingBackendProtocol, @unchecked Sendable {
     public init() {}
 
     public func searchPlaces(query: String) async throws -> [MapDestinationCandidate] {
@@ -96,8 +129,34 @@ public final class LiveMapKitBackend: MapsSearchAndHandoffProtocol, @unchecked S
         #if os(iOS)
         return await item.openInMaps(launchOptions: options, from: nil)
         #else
-        return await item.openInMaps(launchOptions: options)
+        return item.openInMaps(launchOptions: options)
         #endif
+    }
+
+    public func estimateTravelMinutes(destinationQuery: String, mode: MapsTransportMode) async -> Int? {
+        let trimmed = destinationQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        do {
+            let searchRequest = MKLocalSearch.Request()
+            searchRequest.naturalLanguageQuery = trimmed
+            let searchResponse = try await MKLocalSearch(request: searchRequest).start()
+            guard let destinationItem = searchResponse.mapItems.first else {
+                return nil
+            }
+            let directionsRequest = MKDirections.Request()
+            directionsRequest.source = MKMapItem.forCurrentLocation()
+            directionsRequest.destination = destinationItem
+            switch mode {
+            case .driving: directionsRequest.transportType = .automobile
+            case .walking: directionsRequest.transportType = .walking
+            case .transit: directionsRequest.transportType = .transit
+            }
+            let etaResponse = try await MKDirections(request: directionsRequest).calculateETA()
+            return max(1, Int((etaResponse.expectedTravelTime / 60.0).rounded()))
+        } catch {
+            // Konum izni veya ağ olmadığında güvenli geri çekilme; asla konum izni istemez.
+            return nil
+        }
     }
 }
 #endif
@@ -127,5 +186,17 @@ public final class MapsActionExecutor: @unchecked Sendable {
         } catch {
             return .notFound(query: query)
         }
+    }
+
+    public func estimateTravelMinutes(
+        destinationQuery: String,
+        mode: MapsTransportMode = .driving
+    ) async -> Int? {
+        let trimmed = destinationQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let etaBackend = backend as? ETACalculatingBackendProtocol {
+            return await etaBackend.estimateTravelMinutes(destinationQuery: trimmed, mode: mode)
+        }
+        return nil
     }
 }

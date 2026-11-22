@@ -1,13 +1,16 @@
 import SwiftUI
 import AgentCore
+#if canImport(AppIntents)
+import AppIntents
+#endif
 
 /// İlk açılış ekranı: "Bu iPhone'da dene" ile gerçek örnek not, model durumu,
 /// "Sağlayıcı bağla" ve Sesli Kestirme / Eylem Düğmesi kurulum rehberi.
 /// Takvim, kişiler ve mikrofon izinleri ilk özelliğe dokunuşa kadar ertelenir.
 struct OnboardingView: View {
     @Bindable var coordinator: AppCoordinator
-    let onOpenProviderSettings: () -> Void
-    let onCompleteOnboarding: () -> Void
+    let onOpenProviderSettings: @MainActor () -> Void
+    let onCompleteOnboarding: @MainActor () -> Void
 
     @State private var trialCompletedNote: PersistentNote?
 
@@ -58,9 +61,13 @@ struct OnboardingView: View {
 
                 GroupBox("2. Siri, Sesli Kestirmeler ve Eylem Düğmesi") {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("• Siri İfadesi: \"Hey Siri, iAgent ile konuş\" diyerek deneyin.")
-                        Text("• Özel Çağrı (örn. \"Jarvis\"): iOS Ayarlar → Erişilebilirlik → Sesli Kestirmeler üzerinden \"iAgent ile Konuş\" kestirmesini seçtiğiniz ifadeye bağlayın.")
+                        Text("• Siri İfadesi: \"Hey Siri, iAgent ile konuş\" veya \"iAgent sabah brifingi\" diyerek deneyin.")
+                        Text("• Özel Çağrı (örn. \"Jarvis\"): iOS Ayarlar → Erişilebilirlik → Sesli Kestirmeler üzerinden \"Jarvis Dinle\" veya \"iAgent ile Konuş\" kestirmesini seçtiğiniz ifadeye bağlayın.")
                         Text("• Eylem Düğmesi: Desteklenen iPhone modellerinde Ayarlar → Eylem Düğmesi → Kestirme altından aynı kestirmeyi atayın.")
+                        #if os(iOS) && canImport(AppIntents)
+                        ShortcutsLink()
+                            .padding(.top, 4)
+                        #endif
                     }
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -49,16 +49,32 @@ public final class KeychainSecretStore: SecretStoreProtocol, Sendable {
     public func saveKey(_ key: String, forHost host: String) throws {
         let normalized = host.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { throw SecretStoreError.invalidHost }
-        try deleteKey(forHost: normalized)
 
-        let query: [String: Any] = [
+        let keyData = Data(key.utf8)
+        let matchQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: servicePrefix,
-            kSecAttrAccount as String: normalized,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: Data(key.utf8)
+            kSecAttrAccount as String: normalized
         ]
-        let status = SecItemAdd(query as CFDictionary, nil)
+        let attributesToUpdate: [String: Any] = [
+            kSecValueData as String: keyData,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+
+        // Sil-sonra-ekle yarış penceresini kapatmak için önce atomik SecItemUpdate dene.
+        let updateStatus = SecItemUpdate(matchQuery as CFDictionary, attributesToUpdate as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return
+        }
+        guard updateStatus == errSecItemNotFound else {
+            throw SecretStoreError.keychainFailure(updateStatus)
+        }
+
+        var addQuery = matchQuery
+        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        addQuery[kSecValueData as String] = keyData
+
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
         guard status == errSecSuccess else {
             throw SecretStoreError.keychainFailure(status)
         }

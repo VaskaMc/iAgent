@@ -85,6 +85,125 @@
           }
         }
       }
+    },
+    "Jarvis Dinle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jarvis Dinlə"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jarvis Dinle"
+          }
+        }
+      }
+    },
+    "iAgent Sabah Brifingi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iAgent Səhər Brifinqi"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iAgent Sabah Brifingi"
+          }
+        }
+      }
+    },
+    "Sabah Brifingi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Səhər Brifinqi"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sabah Brifingi"
+          }
+        }
+      }
+    },
+    "${applicationName} dinle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} dinlə"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} dinle"
+          }
+        }
+      }
+    },
+    "Jarvis ${applicationName}" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jarvis ${applicationName}"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jarvis ${applicationName}"
+          }
+        }
+      }
+    },
+    "${applicationName} sabah brifingi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} səhər brifinqi"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} sabah brifingi"
+          }
+        }
+      }
+    },
+    "${applicationName} günlük brifing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "az" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} gündəlik brifinq"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} günlük brifing"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

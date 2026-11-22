@@ -15,5 +15,23 @@ struct IAgentShortcutsProvider: AppShortcutsProvider {
             shortTitle: "iAgent ile Konuş",
             systemImageName: "waveform.circle.fill"
         )
+        AppShortcut(
+            intent: QuickVoiceJarvisIntent(),
+            phrases: [
+                "\(.applicationName) dinle",
+                "Jarvis \(.applicationName)"
+            ],
+            shortTitle: "Jarvis Dinle",
+            systemImageName: "mic.fill"
+        )
+        AppShortcut(
+            intent: MorningBriefingIntent(),
+            phrases: [
+                "\(.applicationName) sabah brifingi",
+                "\(.applicationName) günlük brifing"
+            ],
+            shortTitle: "Sabah Brifingi",
+            systemImageName: "sun.horizon.fill"
+        )
     }
 }

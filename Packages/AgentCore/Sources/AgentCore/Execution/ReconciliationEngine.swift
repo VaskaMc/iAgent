@@ -92,7 +92,11 @@ public final class WriteAheadJournal: @unchecked Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         if let data = try? encoder.encode(entries) {
+            #if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
+            try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+            #else
             try? data.write(to: fileURL, options: [.atomic])
+            #endif
         }
     }
 }

@@ -68,7 +68,11 @@ public final class SharedInboxManager: @unchecked Sendable {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let encoded = try encoder.encode(item)
+            #if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
+            try encoded.write(to: fileURL, options: [.atomic, .completeFileProtection])
+            #else
             try encoded.write(to: fileURL, options: [.atomic])
+            #endif
         }
         return item
     }

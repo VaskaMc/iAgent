@@ -44,6 +44,8 @@ public enum ReminderCreateOutcome: Equatable, Sendable {
 public protocol RemindersBackendProtocol: Sendable {
     func authorizationState() async -> RemindersAuthorizationState
     func saveReminder(title: String, dueDate: Date, timeZone: TimeZone) async throws -> ReminderRecord
+    func fetchOpenReminders() async throws -> [ReminderRecord]
+    func deleteReminder(identifier: String) async throws
 }
 
 public final class InMemoryRemindersBackend: RemindersBackendProtocol, @unchecked Sendable {
@@ -51,8 +53,9 @@ public final class InMemoryRemindersBackend: RemindersBackendProtocol, @unchecke
     public var state: RemindersAuthorizationState
     public var savedReminders: [ReminderRecord] = []
 
-    public init(state: RemindersAuthorizationState = .fullAccess) {
+    public init(state: RemindersAuthorizationState = .fullAccess, savedReminders: [ReminderRecord] = []) {
         self.state = state
+        self.savedReminders = savedReminders
     }
 
     public func authorizationState() async -> RemindersAuthorizationState {
@@ -70,6 +73,25 @@ public final class InMemoryRemindersBackend: RemindersBackendProtocol, @unchecke
             )
             savedReminders.append(record)
             return record
+        }
+    }
+
+    public func fetchOpenReminders() async throws -> [ReminderRecord] {
+        try lock.withLock {
+            guard state == .fullAccess else {
+                throw NSError(
+                    domain: "RemindersAction",
+                    code: 403,
+                    userInfo: [NSLocalizedDescriptionKey: "Anımsatıcı okuma izni verilmedi."]
+                )
+            }
+            return savedReminders.sorted { $0.dueDate < $1.dueDate }
+        }
+    }
+
+    public func deleteReminder(identifier: String) async throws {
+        lock.withLock {
+            savedReminders.removeAll { $0.id == identifier }
         }
     }
 }
@@ -111,6 +133,41 @@ public final class LiveEventKitRemindersBackend: RemindersBackendProtocol, @unch
             timeZoneIdentifier: timeZone.identifier
         )
     }
+
+    public func fetchOpenReminders() async throws -> [ReminderRecord] {
+        let predicate = store.predicateForIncompleteReminders(
+            withDueDateStarting: nil,
+            ending: nil,
+            calendars: nil
+        )
+        return try await withCheckedThrowingContinuation { continuation in
+            _ = store.fetchReminders(matching: predicate) { reminders in
+                let records: [ReminderRecord] = (reminders ?? []).map { rem in
+                    let tz = rem.dueDateComponents?.timeZone ?? .current
+                    var cal = Calendar(identifier: .gregorian)
+                    cal.timeZone = tz
+                    let due = rem.dueDateComponents.flatMap { cal.date(from: $0) }
+                        ?? rem.alarms?.first?.absoluteDate
+                        ?? Date.distantFuture
+                    let alarmDate = rem.alarms?.first?.absoluteDate ?? due
+                    return ReminderRecord(
+                        id: rem.calendarItemIdentifier,
+                        title: rem.title ?? "",
+                        dueDate: due,
+                        alarmAbsoluteDate: alarmDate,
+                        timeZoneIdentifier: tz.identifier
+                    )
+                }
+                continuation.resume(returning: records.sorted { $0.dueDate < $1.dueDate })
+            }
+        }
+    }
+
+    public func deleteReminder(identifier: String) async throws {
+        if let existing = store.calendarItem(withIdentifier: identifier) as? EKReminder {
+            try store.remove(existing, commit: true)
+        }
+    }
 }
 #endif
 
@@ -120,6 +177,10 @@ public final class RemindersActionExecutor: @unchecked Sendable {
 
     public init(backend: RemindersBackendProtocol) {
         self.backend = backend
+    }
+
+    public func authorizationState() async -> RemindersAuthorizationState {
+        await backend.authorizationState()
     }
 
     public func createReminder(
@@ -144,6 +205,30 @@ public final class RemindersActionExecutor: @unchecked Sendable {
             return .saved(record)
         } catch {
             return .failed(error.localizedDescription)
+        }
+    }
+
+    public func fetchOpenReminders() async -> [ReminderRecord] {
+        await fetchOpenReminders(isDeviceLocked: false)
+    }
+
+    public func fetchOpenReminders(isDeviceLocked: Bool) async -> [ReminderRecord] {
+        guard !isDeviceLocked else { return [] }
+        let auth = await backend.authorizationState()
+        guard auth == .fullAccess else { return [] }
+        return (try? await backend.fetchOpenReminders()) ?? []
+    }
+
+    public func deleteReminder(identifier: String) async -> Bool {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let auth = await backend.authorizationState()
+        guard auth == .fullAccess else { return false }
+        do {
+            try await backend.deleteReminder(identifier: trimmed)
+            return true
+        } catch {
+            return false
         }
     }
 }

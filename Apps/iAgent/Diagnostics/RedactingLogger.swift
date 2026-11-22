@@ -1,5 +1,6 @@
 import Foundation
 import os
+import AgentCore
 
 public enum DiagnosticCategory: String, Sendable {
     case lifecycle
@@ -17,20 +18,48 @@ public struct RedactingLogger: Sendable {
     public init() {}
 
     public static func redact(_ raw: String) -> String {
-        var sanitized = raw
-        let patterns: [(String, String)] = [
-            (#"Bearer\s+[A-Za-z0-9\-._~+/]+=*"#, "Bearer [REDACTED]"),
-            (#"sk-[A-Za-z0-9\-_]{6,}"#, "sk-[REDACTED]"),
-            (#"\+?\d[\d\s\-]{7,}\d"#, "[PHONE_REDACTED]"),
-            (#"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#, "[EMAIL_REDACTED]")
+        guard !raw.isEmpty else { return raw }
+
+        // 1. URL sorgu parametrelerindeki anahtar/jeton değerlerini (?key=..., &token=...) maskele.
+        var sanitized = replacing(
+            in: raw,
+            pattern: #"([?&](?:key|api[_-]?key|apikey|token|access[_-]?token|refresh[_-]?token|id[_-]?token|secret|password|auth|sig|signature)=)([^&#\s]+)"#,
+            options: [.caseInsensitive],
+            template: "$1[REDACTED]"
+        )
+
+        // 2. AgentCore.MemorySecretGuard ile API anahtarları, Bearer, JWT, TR/AZ IBAN, TCKN, kart PAN ve parolaları maskele.
+        sanitized = MemorySecretGuard.redactSecrets(in: sanitized)
+
+        // 3. Ek desenler: kısa parçalı JWT, genel IBAN, bitişik PAN, TCKN, sk-/Bearer, e-posta ve telefon numaraları.
+        let patterns: [(pattern: String, options: NSRegularExpression.Options, replacement: String)] = [
+            (#"\beyJ[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}(?:\.[A-Za-z0-9_\-]{4,})?\b"#, [], "[JWT_REDACTED]"),
+            (#"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,28}\b"#, [], "[IBAN_REDACTED]"),
+            (#"(?<![+\d])\b\d{13,19}\b"#, [], "[PAN_REDACTED]"),
+            (#"\b(?:tckn|tc\s*kimlik(?:\s*no)?|kimlik\s*no)\s*[:=\-]?\s*[1-9]\d{10}\b"#, [.caseInsensitive], "[TCKN_REDACTED]"),
+            (#"Bearer\s+[A-Za-z0-9\-._~+/]+=*"#, [.caseInsensitive], "Bearer [REDACTED]"),
+            (#"sk-[A-Za-z0-9\-_]{6,}"#, [.caseInsensitive], "sk-[REDACTED]"),
+            (#"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#, [.caseInsensitive], "[EMAIL_REDACTED]"),
+            (#"\+?\d[\d\s\-]{7,}\d"#, [], "[PHONE_REDACTED]")
         ]
-        for (pattern, replacement) in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
-                let range = NSRange(sanitized.startIndex..., in: sanitized)
-                sanitized = regex.stringByReplacingMatches(in: sanitized, range: range, withTemplate: replacement)
-            }
+
+        for item in patterns {
+            sanitized = replacing(in: sanitized, pattern: item.pattern, options: item.options, template: item.replacement)
         }
         return sanitized
+    }
+
+    private static func replacing(
+        in input: String,
+        pattern: String,
+        options: NSRegularExpression.Options,
+        template: String
+    ) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else {
+            return input
+        }
+        let range = NSRange(input.startIndex..., in: input)
+        return regex.stringByReplacingMatches(in: input, options: [], range: range, withTemplate: template)
     }
 
     public func logEvent(

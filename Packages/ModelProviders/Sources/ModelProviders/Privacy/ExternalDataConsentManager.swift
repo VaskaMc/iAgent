@@ -5,6 +5,9 @@ public enum ExternalDataScope: String, Codable, CaseIterable, Sendable {
     case calendarContext
     case notesContext
     case sharedDocumentText
+    case approvedMemoryContext
+    case sharedDocumentOCRText
+    case visualImagePayload
 
     public var displayTitleTR: String {
         switch self {
@@ -12,7 +15,20 @@ public enum ExternalDataScope: String, Codable, CaseIterable, Sendable {
         case .calendarContext: return "Takvim özeti"
         case .notesContext: return "Seçilen not metni"
         case .sharedDocumentText: return "Paylaşılan belge metni"
+        case .approvedMemoryContext: return "Onaylı hafıza özeti"
+        case .sharedDocumentOCRText: return "Paylaşılan belge OCR metni"
+        case .visualImagePayload: return "Görsel içerik verisi"
         }
+    }
+}
+
+public struct ProviderConsentKey: Hashable, Codable, Sendable {
+    public let providerID: String
+    public let endpointHost: String
+
+    public init(providerID: String, endpointHost: String) {
+        self.providerID = providerID
+        self.endpointHost = endpointHost.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -40,10 +56,10 @@ public struct ConsentPreview: Equatable, Sendable {
 
 /// İlk kez bulut sağlayıcısına veri göndermeden önce açık izin ister.
 /// İzin reddedildiğinde veya geri çekildiğinde sonraki istekte ağ çağrısı yapılmaz.
-/// Sağlayıcı değiştiğinde önceki onay geçersiz olur.
+/// Sağlayıcı veya hedef sunucu (host) değiştiğinde önceki onay geçersiz olur.
 public final class ExternalDataConsentManager: @unchecked Sendable {
     private let lock = NSLock()
-    private var activeProviderID: String?
+    private var activeConsentKey: ProviderConsentKey?
     private var grantedScopes = Set<ExternalDataScope>()
 
     public init() {}
@@ -63,11 +79,22 @@ public final class ExternalDataConsentManager: @unchecked Sendable {
         )
     }
 
-    public func grantConsent(forProviderID providerID: String, scopes: Set<ExternalDataScope>) {
+    public func grantConsent(for key: ProviderConsentKey, scopes: Set<ExternalDataScope>) {
         lock.withLock {
-            if activeProviderID != providerID {
+            if activeConsentKey != key {
                 grantedScopes.removeAll()
-                activeProviderID = providerID
+                activeConsentKey = key
+            }
+            grantedScopes.formUnion(scopes)
+        }
+    }
+
+    public func grantConsent(forProviderID providerID: String, scopes: Set<ExternalDataScope>) {
+        let key = ProviderConsentKey(providerID: providerID, endpointHost: "")
+        lock.withLock {
+            if activeConsentKey?.providerID != providerID || activeConsentKey?.endpointHost != "" {
+                grantedScopes.removeAll()
+                activeConsentKey = key
             }
             grantedScopes.formUnion(scopes)
         }
@@ -76,22 +103,62 @@ public final class ExternalDataConsentManager: @unchecked Sendable {
     public func revokeConsent() {
         lock.withLock {
             grantedScopes.removeAll()
-            activeProviderID = nil
+            activeConsentKey = nil
+        }
+    }
+
+    public func revokeConsent(for key: ProviderConsentKey) {
+        lock.withLock {
+            if activeConsentKey == key {
+                grantedScopes.removeAll()
+                activeConsentKey = nil
+            }
         }
     }
 
     public func switchProvider(to newProviderID: String) {
+        let key = ProviderConsentKey(providerID: newProviderID, endpointHost: "")
         lock.withLock {
-            if activeProviderID != newProviderID {
+            if activeConsentKey?.providerID != newProviderID {
                 grantedScopes.removeAll()
-                activeProviderID = newProviderID
+                activeConsentKey = key
+            }
+        }
+    }
+
+    public func switchProvider(to newKey: ProviderConsentKey) {
+        lock.withLock {
+            if activeConsentKey != newKey {
+                grantedScopes.removeAll()
+                activeConsentKey = newKey
             }
         }
     }
 
     public func isConsentGranted(forProviderID providerID: String, scope: ExternalDataScope) -> Bool {
         lock.withLock {
-            activeProviderID == providerID && grantedScopes.contains(scope)
+            activeConsentKey?.providerID == providerID && grantedScopes.contains(scope)
         }
+    }
+
+    public func isConsentGranted(for key: ProviderConsentKey, scope: ExternalDataScope) -> Bool {
+        lock.withLock {
+            activeConsentKey == key && grantedScopes.contains(scope)
+        }
+    }
+
+    public func isConsentGranted(
+        forProviderID providerID: String,
+        endpointHost: String,
+        scope: ExternalDataScope
+    ) -> Bool {
+        isConsentGranted(
+            for: ProviderConsentKey(providerID: providerID, endpointHost: endpointHost),
+            scope: scope
+        )
+    }
+
+    public func activeConsentKeySnapshot() -> ProviderConsentKey? {
+        lock.withLock { activeConsentKey }
     }
 }

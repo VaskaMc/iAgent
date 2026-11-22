@@ -38,6 +38,9 @@ public final class SpeechSessionController: NSObject {
     public var liveTranscript: String = ""
     public var lastSpokenText: String?
     public var selectedLanguage: AgentLanguage = .turkish
+    public var personaPreset: JarvisPersonaPreset = .butler
+    public let wakeSession = WakeContextSession()
+    public var audioLevelRMS: Double = 0.0
     public var statusMessage: String?
 
     #if canImport(AVFoundation)
@@ -49,6 +52,10 @@ public final class SpeechSessionController: NSObject {
         #if canImport(AVFoundation)
         synthesizer.delegate = self
         #endif
+    }
+
+    public func updateAudioLevelRMS(_ level: Double) {
+        audioLevelRMS = min(1.0, max(0.0, level))
     }
 
     /// Uygulama içi bas-konuş oturumu başlatır. Siri üzerinden gelen görevlerde mikrofon açılmaz.
@@ -89,21 +96,33 @@ public final class SpeechSessionController: NSObject {
             }
         }
 
+        wakeSession.markInteraction()
         activeOwner = .inAppMicrophoneCapture
         isListening = true
+        audioLevelRMS = 0.25
         statusMessage = "Dinleniyor..."
     }
 
     public func stopPushToTalkAndReturnTranscript() -> String {
         isListening = false
+        audioLevelRMS = 0.0
         if activeOwner == .inAppMicrophoneCapture {
             activeOwner = .none
         }
+        wakeSession.markInteraction()
         return liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public func speakInApp(_ text: String, source: TaskSource) {
-        lastSpokenText = text
+        let composed = JarvisResponseComposer.compose(
+            spokenCore: text,
+            language: selectedLanguage,
+            persona: personaPreset
+        )
+        // Ekranda daima orijinal düzgün metin kalır; yalnızca TTS seslendirmesine Azerbaycanca fonetik uyarlama uygulanır.
+        lastSpokenText = composed.displayText
+        wakeSession.markInteraction()
+
         // Siri akışında yanıt IntentDialog ile okunur; uygulama aynı anda konuşmaz.
         guard source != .siri else {
             activeOwner = .siriDialog
@@ -113,10 +132,11 @@ public final class SpeechSessionController: NSObject {
         stopListeningWithoutSending()
         isMicrophoneLockedForPlayback = true
         isSpeaking = true
+        audioLevelRMS = 0.35
         activeOwner = .inAppSpeechSynthesis
 
         #if canImport(AVFoundation)
-        let utterance = AVSpeechUtterance(string: text)
+        let utterance = AVSpeechUtterance(string: composed.spokenText)
         utterance.voice = AVSpeechSynthesisVoice(
             language: selectedLanguage == .azerbaijani ? "az-AZ" : "tr-TR"
         ) ?? AVSpeechSynthesisVoice(language: "tr-TR")
@@ -132,6 +152,7 @@ public final class SpeechSessionController: NSObject {
         #endif
         isSpeaking = false
         isMicrophoneLockedForPlayback = false
+        audioLevelRMS = 0.0
         if activeOwner == .inAppSpeechSynthesis {
             activeOwner = .none
         }
@@ -139,12 +160,34 @@ public final class SpeechSessionController: NSObject {
 
     public func stopListeningWithoutSending() {
         isListening = false
+        audioLevelRMS = 0.0
         if activeOwner == .inAppMicrophoneCapture {
             activeOwner = .none
         }
     }
 
     private func requestSpeechAndMicPermissionsIfNeeded() async {
+        #if os(iOS) && canImport(AVFoundation)
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+            case .denied:
+                permissionState = .denied
+                return
+            case .undetermined:
+                let micGranted = await AVAudioApplication.requestRecordPermission()
+                guard micGranted else {
+                    permissionState = .denied
+                    return
+                }
+            case .granted:
+                break
+            @unknown default:
+                permissionState = .denied
+                return
+            }
+        }
+        #endif
+
         #if canImport(Speech)
         let status = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { authStatus in
@@ -178,6 +221,7 @@ extension SpeechSessionController: AVSpeechSynthesizerDelegate {
         Task { @MainActor [weak self] in
             self?.isSpeaking = false
             self?.isMicrophoneLockedForPlayback = false
+            self?.audioLevelRMS = 0.0
             if self?.activeOwner == .inAppSpeechSynthesis {
                 self?.activeOwner = .none
             }
@@ -188,6 +232,7 @@ extension SpeechSessionController: AVSpeechSynthesizerDelegate {
         Task { @MainActor [weak self] in
             self?.isSpeaking = false
             self?.isMicrophoneLockedForPlayback = false
+            self?.audioLevelRMS = 0.0
             if self?.activeOwner == .inAppSpeechSynthesis {
                 self?.activeOwner = .none
             }

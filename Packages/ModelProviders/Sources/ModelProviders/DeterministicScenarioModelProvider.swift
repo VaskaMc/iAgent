@@ -129,7 +129,69 @@ public final class DeterministicScenarioModelProvider: ModelProvider, @unchecked
             )
         }
 
-        // 6. Tek adımlı / çok adımlı TR & AZ komut çözümleme
+        // 6. Yeni JARVIS yetenek rotaları (brifing, hafıza kasası, alarm)
+        if norm.contains("sabah brifingi") || norm.contains("gunluk brifing") || norm.contains("aksam brifingi") {
+            return .proposedPlan([
+                RawModelStepInput(
+                    id: "brief1",
+                    action: "briefing.compose",
+                    parameters: ActionParameters(title: "Günlük Brifing")
+                )
+            ])
+        }
+
+        if norm.contains("hafizaya kaydet:") || norm.contains("bunu hatirla:") || norm.contains("yaddasda saxla:") {
+            let extracted: String
+            if let colonIndex = request.utterance.firstIndex(of: ":") {
+                extracted = String(request.utterance[request.utterance.index(after: colonIndex)...])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                extracted = request.utterance.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let content = extracted.isEmpty
+                ? request.utterance.trimmingCharacters(in: .whitespacesAndNewlines)
+                : extracted
+            return .proposedPlan([
+                RawModelStepInput(
+                    id: "mem_w",
+                    action: "memory.remember",
+                    parameters: ActionParameters(noteContent: content)
+                )
+            ])
+        }
+
+        if norm.contains("hafizadan bul:") || norm.contains("tercihlerimi goster") {
+            let query: String
+            if norm.contains("hafizadan bul:"), let colonIndex = request.utterance.firstIndex(of: ":") {
+                let afterColon = String(request.utterance[request.utterance.index(after: colonIndex)...])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                query = afterColon.isEmpty ? "tercihler" : afterColon
+            } else {
+                query = "tercihler"
+            }
+            return .proposedPlan([
+                RawModelStepInput(
+                    id: "mem_r",
+                    action: "memory.recall",
+                    parameters: ActionParameters(query: query)
+                )
+            ])
+        }
+
+        if norm.contains("alarm kur") {
+            return .proposedPlan([
+                RawModelStepInput(
+                    id: "alm1",
+                    action: "alarm.create",
+                    parameters: ActionParameters(
+                        title: "JARVIS Alarmı",
+                        dueISO8601: "2026-11-22T07:30:00+04:00"
+                    )
+                )
+            ])
+        }
+
+        // 7. Tek adımlı / çok adımlı TR & AZ komut çözümleme
         if norm.contains("not al") || norm.contains("not ekle") || norm.contains("qeyd et") {
             let content = request.utterance
                 .replacingOccurrences(of: "Şunu not al:", with: "")

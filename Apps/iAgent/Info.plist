@@ -43,6 +43,8 @@
 		<string>whatsapp</string>
 		<string>shortcuts</string>
 	</array>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>iAgent, onayladığınız saatli alarmları kurmak için AlarmKit erişimi ister.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>iAgent, günlük programınızı okumanızı istediğinizde takvim etkinliklerinizi görüntülemek için takvim okuma erişimi ister.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>

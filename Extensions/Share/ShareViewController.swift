@@ -55,6 +55,10 @@ final class ShareViewController: UIViewController {
                     if let loadedText {
                         _ = try self.inboxManager.enqueueText(loadedText, sourceAppHint: "ShareExtension", now: Date())
                     } else if let loadedURL {
+                        if let fileSize = (try? loadedURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
+                           fileSize > SharedInboxManager.maxUTF8Bytes {
+                            throw SharedInboxError.exceedsByteLimit(bytes: fileSize, maxBytes: SharedInboxManager.maxUTF8Bytes)
+                        }
                         let data = try Data(contentsOf: loadedURL)
                         _ = try self.inboxManager.enqueueUTF8Data(data, sourceAppHint: loadedURL.lastPathComponent, now: Date())
                     } else {
@@ -72,7 +76,8 @@ final class ShareViewController: UIViewController {
 
     private func completeExtension(message: String) {
         statusLabel.text = message
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
             self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
         }
     }

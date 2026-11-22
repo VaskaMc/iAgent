@@ -4,9 +4,11 @@ import ModelProviders
 import PhoneActions
 
 private final class ScenarioTransportSpy: HTTPTransportProtocol, @unchecked Sendable {
-    var callCount = 0
+    private let lock = NSLock()
+    private var _callCount = 0
+    var callCount: Int { lock.withLock { _callCount } }
     func send(request: URLRequest, allowedHost: String) async throws -> (Data, HTTPURLResponse) {
-        callCount += 1
+        lock.withLock { _callCount += 1 }
         throw ModelProviderError.networkUnavailable
     }
 }
@@ -266,5 +268,228 @@ final class VerificationScenariosTests: XCTestCase {
                 ]
             )
         )
+    }
+
+    func test10_JarvisMemoryVaultSecretGuardAndCryptographicAuditTrail() async throws {
+        let vaultURL = FileManager.default.temporaryDirectory.appendingPathComponent("sc10-vault-\(UUID().uuidString).json")
+        let vault = try FileBackedMemoryVault(fileURL: vaultURL)
+
+        let fakeSecret = ["sk", "jarvisTestKey987654321"].joined(separator: "-")
+        XCTAssertTrue(MemorySecretGuard.containsSensitiveSecret(fakeSecret))
+        XCTAssertTrue(MemorySecretGuard.containsSensitiveSecret("TR330006100519786457841326"))
+        XCTAssertFalse(MemorySecretGuard.redactSecrets(in: "Anahtar: \(fakeSecret)").contains(fakeSecret))
+
+        let taskId = UUID()
+        XCTAssertThrowsError(
+            try vault.remember(
+                key: "API Anahtarı",
+                value: fakeSecret,
+                privacyTier: .sensitivePersonal,
+                rawUtterance: "Anahtarımı kaydet",
+                sourceTaskId: taskId,
+                now: nov21
+            )
+        ) { err in
+            XCTAssertEqual(err as? MemoryVaultError, .sensitiveSecretRejected)
+        }
+
+        let provenance = MemoryProvenance(
+            rawUtterance: "Sabah kahvemi şekersiz içerim",
+            sourceTaskId: taskId,
+            sourceChannel: "inAppVoice",
+            createdAt: nov21
+        )
+        let entry = try vault.remember(
+            key: "Kahve Tercihi",
+            value: "Şekersiz Türk kahvesi",
+            tags: ["kahve", "sabah"],
+            privacyTier: .standardLocal,
+            provenance: provenance,
+            now: nov21
+        )
+
+        let reopenedVault = try FileBackedMemoryVault(fileURL: vaultURL)
+        let hits = reopenedVault.recall(query: "sekersiz kahve", limit: 5, includeSensitivePersonal: true)
+        XCTAssertEqual(hits.map(\.id), [entry.id])
+
+        let auditURL = FileManager.default.temporaryDirectory.appendingPathComponent("sc10-audit-\(UUID().uuidString).json")
+        let keyData = Data(repeating: 0x4A, count: 32)
+        let trail = try CryptographicAuditTrail(fileURL: auditURL, hmacKeyData: keyData, clock: FixedTestClock(date: nov21))
+        let receipt = ActionReceipt(
+            taskId: taskId,
+            revisionNumber: 1,
+            stepId: "mem-1",
+            executorName: "FileBackedMemoryVault",
+            outcome: .succeeded,
+            externalObjectId: entry.id.uuidString,
+            timestamp: nov21,
+            canUndo: true,
+            spokenVerbTR: "Tercih hafızaya kaydedildi",
+            spokenVerbAZ: "Seçim yaddaşa saxlandı",
+            detail: "Kahve Tercihi"
+        )
+        let recorded = try trail.record(receipt: receipt)
+        XCTAssertEqual(recorded.sequenceIndex, 0)
+        XCTAssertTrue(trail.verifyIntegrity())
+        XCTAssertEqual(trail.allEntries().count, 1)
+
+        let originalText = String(data: try Data(contentsOf: auditURL), encoding: .utf8)!
+        let tamperedText = originalText.replacingOccurrences(of: "Kahve Tercihi", with: "Kahve Degisti")
+        XCTAssertNotEqual(originalText, tamperedText)
+        try Data(tamperedText.utf8).write(to: auditURL, options: [.atomic])
+
+        let tamperedTrail = try CryptographicAuditTrail(fileURL: auditURL, hmacKeyData: keyData, clock: FixedTestClock(date: nov21))
+        XCTAssertFalse(tamperedTrail.verifyIntegrity())
+    }
+
+    func test11_JarvisReflectionSwarmBriefingAndCanonicalDigest() async throws {
+        let task = AgentTask(
+            source: .inAppVoice,
+            selectedModelPath: "apple-on-device",
+            createdAt: nov21,
+            rawUtterance: "13'te toplantı ekle ve Deniz'e mesaj hazırla"
+        )
+        var rev1 = try PlanValidator.validateAndBuildRevision(
+            taskId: task.id,
+            revisionNumber: 1,
+            rawSteps: [
+                RawModelStepInput(
+                    id: "cal1",
+                    action: ActionKind.calendarCreate.rawValue,
+                    parameters: ActionParameters(
+                        title: "Müşteri Sunumu",
+                        startISO8601: "2026-11-21T13:00:00+04:00",
+                        durationMinutes: 45
+                    )
+                ),
+                RawModelStepInput(
+                    id: "msg1",
+                    action: ActionKind.messagesCompose.rawValue,
+                    parameters: ActionParameters(recipientQuery: "Deniz", body: "Görüşürüz")
+                )
+            ],
+            now: nov21
+        )
+
+        let conflictStart = ISO8601DateFormatter().date(from: "2026-11-21T12:45:00+04:00")!
+        let conflictEnd = ISO8601DateFormatter().date(from: "2026-11-21T13:30:00+04:00")!
+        let existingSlot = CalendarSlotSnapshot(
+            id: "ev-conflict",
+            title: "Sprint Değerlendirme",
+            startDate: conflictStart,
+            endDate: conflictEnd,
+            location: "Ofis"
+        )
+
+        let reflection = JarvisReflectionEngine()
+        let reflectionReport = await reflection.analyze(
+            revision: rev1,
+            task: task,
+            existingEvents: [existingSlot],
+            estimatedTravelMinutes: 30,
+            isDeviceLocked: false,
+            isWriteOnlyCalendar: false
+        )
+        XCTAssertTrue(reflectionReport.advisories.contains { $0.category == .calendarConflict })
+        XCTAssertEqual(reflectionReport.approvalDigestSnapshot, rev1.approvalDigest)
+
+        let swarm = JarvisSpecialistSwarm()
+        let lockedSwarm = await swarm.evaluate(
+            task: task,
+            revision: rev1,
+            reflection: reflectionReport,
+            memoryHits: [],
+            isDeviceLocked: true
+        )
+        XCTAssertEqual(lockedSwarm.opinions.count, 4)
+        XCTAssertTrue(lockedSwarm.hasSecurityVeto)
+        XCTAssertTrue(lockedSwarm.recommendedSteps.isEmpty)
+
+        let unlockedSwarm = await swarm.evaluate(
+            task: task,
+            revision: rev1,
+            reflection: reflectionReport,
+            memoryHits: [],
+            isDeviceLocked: false
+        )
+        XCTAssertFalse(unlockedSwarm.hasSecurityVeto)
+        XCTAssertEqual(unlockedSwarm.recommendedSteps.count, 2)
+
+        let writeOnlyCal = CalendarActionExecutor(backend: InMemoryCalendarBackend(state: .writeOnly))
+        let remExec = RemindersActionExecutor(backend: InMemoryRemindersBackend(state: .fullAccess))
+        let mapsExec = MapsActionExecutor(backend: InMemoryMapsBackend())
+        let briefing = await BriefingSynthesizer().composeBriefing(
+            for: nov21,
+            timeZone: bakuTZ,
+            isDeviceLocked: false,
+            language: .turkish,
+            calendarExecutor: writeOnlyCal,
+            remindersExecutor: remExec,
+            mapsExecutor: mapsExec
+        )
+        XCTAssertNotNil(briefing.calendarPermissionBlockedReason)
+        XCTAssertFalse(briefing.spokenSummary.contains("etkinlik yok"))
+
+        let oldDigest = rev1.approvalDigest
+        let rev2 = CanonicalApprovalDigest.rebuildRevisionWithUpdatedSteps(
+            from: &rev1,
+            transform: { steps in
+                steps.map { step in
+                    var copy = step
+                    if copy.id == "msg1" {
+                        copy.parameters.resolvedRecipientHandle = "+994501234567"
+                    }
+                    return copy
+                }
+            },
+            now: nov21.addingTimeInterval(15)
+        )
+        XCTAssertTrue(rev1.isInvalidated)
+        XCTAssertEqual(rev2.revisionNumber, 2)
+        XCTAssertNotEqual(rev2.approvalDigest, oldDigest)
+    }
+
+    func test12_JarvisHybridSecuritySSRFAndAzerbaijaniTTSBridge() async throws {
+        let blockedURLs = [
+            "http://api.deepseek.com/v1/chat/completions",
+            "https://127.0.0.1/v1/chat/completions",
+            "https://localhost:8443/v1/chat/completions",
+            "https://192.168.1.10/v1/chat/completions",
+            "https://169.254.169.254/latest/meta-data",
+            "https://macmini.local/v1/chat/completions"
+        ]
+        for raw in blockedURLs {
+            let url = try XCTUnwrap(URL(string: raw))
+            XCTAssertFalse(StrictEndpointValidator.isValidRemoteHTTPS(url))
+            XCTAssertThrowsError(try StrictEndpointValidator.validateHTTPS(url: url))
+        }
+        let validRemote = try XCTUnwrap(URL(string: "https://api.deepseek.com/v1/chat/completions"))
+        XCTAssertTrue(StrictEndpointValidator.isValidRemoteHTTPS(validRemote))
+
+        let accumulator = ToolCallDeltaAccumulator()
+        await accumulator.ingest(.toolCallStarted(index: 0, id: "s1", name: "notes_create"))
+        await accumulator.ingest(.argumentsDelta(index: 0, utf8Fragment: Data(#"{"noteContent":"Yarım"#.utf8)))
+        await accumulator.ingest(.terminated(reason: .length))
+        await accumulator.ingest(.completedSentinel)
+
+        let bufferedBytes = await accumulator.bufferedArgumentBytesCount
+        XCTAssertEqual(bufferedBytes, 0)
+        let accResult = await accumulator.finalize(taskId: UUID(), revisionNumber: 1, now: nov21)
+        guard case .truncatedOrInvalid = accResult else {
+            return XCTFail("Expected truncatedOrInvalid when stream terminated with length")
+        }
+
+        let azOriginal = "Əhməd qeydi saxladı və xəritəni açdı"
+        let composed = JarvisResponseComposer.compose(
+            spokenCore: azOriginal,
+            language: .azerbaijani,
+            persona: .executive
+        )
+        XCTAssertEqual(composed.displayText, azOriginal)
+        XCTAssertFalse(composed.spokenText.contains("ə"))
+        XCTAssertFalse(composed.spokenText.contains("Ə"))
+        XCTAssertFalse(composed.spokenText.contains("q"))
+        XCTAssertFalse(composed.spokenText.contains("x"))
+        XCTAssertEqual(AzerbaijaniPhoneticBridge.adaptForTTS(azOriginal, language: .turkish), azOriginal)
     }
 }

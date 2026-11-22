@@ -148,12 +148,32 @@ Bu belge, **Codemagic Build #7 (`84de471`)** kararlı iOS `.ipa` sürümünün (
   - `TurkicVoiceTextProcessor` & `AzerbaijaniPhoneticBridge` (`ə→e`, `q→k`, `x→h` yalnızca TTS sesine uygulanır, ekran/not metni bozulmaz).
 
 ---
+## 11. 3 Bilge Sentezi (Antigravity, Claude ve Codex Mutlak JARVIS Mimarisi)
+
+Mevcut v1.0 kod tabanı incelendikten sonra 3 Bilge (`Antigravity`, `Claude`, `Codex`) tarafından tanımlanan mutlak JARVIS katmanları ve katı Swift 6 / iOS 26 uygulama sınırları aşağıda birleştirilmiştir. (`AgentCore` yalnızca `Foundation` + `CryptoKit` içerir; iOS çerçeveleri `#if canImport(...)` korumalarıyla `PhoneActions` / `Apps/iAgent` katmanında yaşar.)
+
+### 11.1 Antigravity Paradigması (`Bilge 1 - Antigravity Mimari`)
+- **`JarvisSpecialistSwarm` (`AgentCore/Planning`):** `PlannerAgent`, `ScheduleETAStrategist`, `MemoryLibrarian` ve `SecurityGuardian` uzmanlarını `withTaskGroup` ile paralel çalıştırıp `SecurityGuardian` vetosu geçersiz kılınamayacak şekilde tek bir `SwarmSynthesisReport` üretir.
+- **`JarvisArtifactVault` (`AgentCore/Planning`):** Günlük brifing (`daily_briefing`), toplantı dosyası (`meeting_dossier`) ve yürütme raporu (`execution_report`) için SHA-256 revizyon takipli Markdown kasa; `ArtifactSecretGuard` sırlara izin vermez ve görev geçmişi silinmesinden bağımsızdır.
+- **`JarvisAutonomousScheduler` (`AgentCore` + `PhoneActions`):** `BGTaskScheduler` (`com.iagent.jarvis.autonomous-tick`) + `UNUserNotificationCenter` üzerinde sessiz saatlere, `.completeFileProtection` disk lease kilidine (`FileBackedAutonomousLeaseStore`), `eventRevisionHash` farkına ve `requiresUnlockedDevice` sınırına saygılı proaktif hazırlık döngüsü. Asla onay almadan `ExecutionCoordinator.execute` çalıştırmaz; yalnız `StagedAutonomousPlan` sahneler.
+
+### 11.2 Claude Paradigması (`Bilge 2 - Claude Mimari`)
+- **`JarvisConstitutionalGuard` (`AgentCore/Security`):** Epistemik dürüstlük seviyeleri (`EpistemicHonestyLevel`: `.evidenced`, `.handedOffToUser`, `.inferred`, `.uncertain`), kademeli risk (`ActionRiskTier.tier0ReadSafe`..`tier3BiometricRequired`), `ModelDestinationPolicy` dış veri duvarı ve makbuz olmadan yan etki iddiası üretimini (`"ekledim/gönderdim"`) engelleyen yanıt doğrulayıcı.
+- **`JarvisReflectionEngine` (`AgentCore/Planning`):** Kullanıcı `"Onayla ve Uygula"` demeden önce yan etkisiz simülasyon yapar; takvim çakışmalarını, ETA yetişme riskini, belirsiz kişileri ve eksik parametreleri `ReflectionReport` (`ReflectionAdvisory` + `ReflectionSuggestedPatch`) olarak yakalar; yama seçildiğinde `PlanRevision` numarasını ve onay mührünü (`approvalDigest`) otomatik yeniler.
+- **`JarvisContextCompactor` (`AgentCore/Memory`):** Cihaz içi `SystemLanguageModel` 4.096 token sınırı (`CompactionBudgetConfig.ios26OnDevice4096`) için TR/AZ BPE %15 güvenlik marjlı tahminleyici (`TurkicHeuristicTokenEstimator`) ile epizodik sıkıştırma yapar; değiştirilemez `MemoryProvenance` kökenini korur ve >= 3 farklı görev tekrarında kullanıcı onaylı `MemoryCandidateProposal` önerir.
+
+### 11.3 Codex Paradigması (`Bilge 3 - Codex Mimari`)
+- **`CanonicalApprovalDigest` & `SagaCompensationEngine` (`AgentCore/Catalog` & `Planning`):** `ActionParameters` içindeki tüm 17 alanı + bağımlılıkları tip-etiketli / uzunluk-önekli kanonik SHA-256 ile özetler (`nil`/`""`/`0` çarpışmasını yok eder); kısmi/kritik adım hatasında geri alınabilir adımları LIFO sırayla telafi eder, dış UI adımlarını (`.messagesCompose`, `.mapsDirections`) ise `.notUndoableExternally` olarak dürüstçe raporlar.
+- **`ToolCallDeltaAccumulator` (`Packages/ModelProviders`):** Streaming SSE parçalarını UTF-8 çok-baytlı bölünmeye karşı ham `Data` tamponunda biriktirir; `finish_reason == "length"` / `max_tokens` / `incomplete` veya bozuk JSON durumunda tamponu sıfır yan etkiyle imha edip `Tier-0` deterministik yedeğe (veya `.safetyRefusal` izolasyonuna) düşer.
+- **`CryptographicAuditTrail` (`AgentCore/Security`):** Her `ActionReceipt` / telafi kaydını önceki kaydın SHA-256 özetine zincirleyen ve tek baytlık disk değişikliği ya da kuyruk kırpma girişimini `verifyIntegrity() -> Bool` ile yakalayan değiştirilemez denetim defteri.
+
+---
 
 ## Önceliklendirilmiş Uygulama Yol Haritası (v1.1 → v2.0)
 
 | Faz | Odak | Başlıca Kapsanan Uzman Tasarımları |
 |---|---|---|
-| **Faz A · Çekirdek Güvenlik, Akıllı Hafıza & Bağlam** | `MemoryVault` + `BiometricGate` + `CryptographicAuditTrail` + `GoalPlanRevision`/Saga temeli | Uzman #2, #4, #8 |
-| **Faz B · Hibrit Yapay Zekâ Beyni & Çift Yönlü Ses** | `HybridModelRouter` (Apple + DeepSeek + OpenAI Responses + Anthropic Messages) + `FullDuplexAudioPipeline` + `JarvisPersona` | Uzman #3, #10 |
-| **Faz C · Proaktif JARVIS, Çok Modlu Zekâ & Ekosistem** | Sabah/Akşam brifingi, `MKDirections` ETA, VisionKit/PDFKit fiş/bilet/kartvizit boru hattı, Focus/HomeKit/MusicKit/CarPlay + Çift Yönlü Kestirmeler | Uzman #1, #6, #7 |
-| **Faz D · iPhone Donanım Yüzeyleri & Spatial HUD** | Dynamic Island / `ActivityKit`, Control Center `ControlWidget`, StandBy HUD, `AlarmKit`, AirPods HFP/stem, `JarvisStatusOrbView` & `StepReceiptTimelineView` | Uzman #5, #9 |
+| **Faz A · Çekirdek Güvenlik, Akıllı Hafıza & Bağlam** | `MemoryVault` + `BiometricGate` + `CryptographicAuditTrail` + `CanonicalApprovalDigest` / Saga temeli | Uzman #2, #4, #8, Bölüm 11 |
+| **Faz B · Hibrit Yapay Zekâ Beyni & Çift Yönlü Ses** | `HybridModelRouter` + `ToolCallDeltaAccumulator` + `JarvisReflectionEngine` + `JarvisPersona` & Ses köprüsü | Uzman #3, #10, Bölüm 11 |
+| **Faz C · Proaktif JARVIS, Çok Modlu Zekâ & Ekosistem** | Sabah/Akşam brifingi, `MKDirections` ETA, Fiş/Bilet doğrulama, `AlarmKit`, `DrivingSafetyPolicy` | Uzman #1, #6, #7, Bölüm 11 |
+| **Faz D · iPhone Donanım Yüzeyleri & Spatial HUD** | `JarvisStatusOrbView`, `JarvisArtifactVault`, `StepReceiptTimelineView`, `LockScreen` / `ControlWidget` | Uzman #5, #9, Bölüm 11 |

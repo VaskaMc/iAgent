@@ -2,8 +2,8 @@
 """
 iAgent çapraz platform doğrulama koşucusu.
 - Proje/paket dosya ve pbxproj/xcscheme/plist/xcstrings bütünlüğünü doğrular.
-- Kaynak kodda gömülü API anahtarı olmadığını ve RedactingLogger kurallarını denetler.
-- Bölüm 9'daki 9 doğrulama senaryosunu + 30 TR + 10 AZ kabul kümesini simüle edip doğrular.
+- Kaynak kodda gömülü API anahtarı olmadığını, RedactingLogger kurallarını ve Swift 6 statik değişmezlerini denetler.
+- Bölüm 9'daki 9 doğrulama senaryosunu + JARVIS deterministik senaryolarını + 30 TR + 10 AZ kabul kümesini simüle edip doğrular.
 """
 
 from __future__ import annotations
@@ -60,6 +60,16 @@ def check_project_structure() -> list[str]:
         "docs/verification/BETA_EVALUATION_MATRIX_TR_AZ.md",
         "docs/verification/BUILD_AND_DEVICE_SETUP_TR.md",
         "docs/verification/PRIVACY_AND_APP_STORE_DECLARATIONS_TR.md",
+        ".agents/skills/ios-jarvis-engineering/SKILL.md",
+        "docs/JARVIS_NEXT_GEN_ROADMAP_TR.md",
+        "Packages/AgentCore/Sources/AgentCore/Memory/JarvisMemoryVault.swift",
+        "Packages/AgentCore/Sources/AgentCore/Security/JarvisSecurityGuard.swift",
+        "Packages/AgentCore/Sources/AgentCore/Planning/JarvisNextGenEngines.swift",
+        "Packages/AgentCore/Tests/AgentCoreTests/JarvisAgentCoreTests.swift",
+        "Packages/ModelProviders/Sources/ModelProviders/HybridModelRouter.swift",
+        "Packages/ModelProviders/Tests/ModelProvidersTests/JarvisModelProvidersTests.swift",
+        "Packages/PhoneActions/Sources/PhoneActions/Briefing/JarvisBriefingAndEcosystemExecutor.swift",
+        "Packages/PhoneActions/Tests/PhoneActionsTests/JarvisPhoneActionsTests.swift",
     ]
     for rel in required_files:
         if not (ROOT / rel).is_file():
@@ -139,6 +149,364 @@ def check_no_hardcoded_secrets() -> list[str]:
     return errors
 
 
+FORBIDDEN_AGENTCORE_IMPORTS = {
+    "UIKit",
+    "SwiftUI",
+    "SwiftData",
+    "NaturalLanguage",
+    "EventKit",
+    "LocalAuthentication",
+    "AlarmKit",
+    "HomeKit",
+    "Security",
+}
+
+IMPORT_STMT_RE = re.compile(
+    r"^\s*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?\s+)*"
+    r"import\s+(?:(?:typealias|struct|class|enum|protocol|let|var|func)\s+)?"
+    r"([A-Za-z_][A-Za-z0-9_]*)\b"
+)
+XCTEST_SINGLE_LINE_AWAIT_RE = re.compile(r"XCTAssert\w*\([^;\n]*\bawait\b")
+XCTEST_CALL_RE = re.compile(r"\b(XCTAssert\w*)\s*\(")
+
+
+def _scan_swift_segment(
+    text: str,
+    start: int,
+    *,
+    blank_plain_strings: bool,
+    stop_on_rparen: bool,
+) -> tuple[str, int]:
+    """Scan Swift source stripping // and nested /* */ comments while preserving line numbers."""
+    out: list[str] = []
+    n = len(text)
+    i = start
+    paren_depth = 1 if stop_on_rparen else 0
+
+    while i < n:
+        ch = text[i]
+
+        if stop_on_rparen:
+            if ch == "(":
+                paren_depth += 1
+            elif ch == ")":
+                paren_depth -= 1
+                out.append(ch)
+                i += 1
+                if paren_depth == 0:
+                    return "".join(out), i
+                continue
+
+        # Line comment
+        if ch == "/" and i + 1 < n and text[i + 1] == "/":
+            out.extend("  ")
+            i += 2
+            while i < n and text[i] != "\n":
+                out.append(" ")
+                i += 1
+            continue
+
+        # Nested block comment
+        if ch == "/" and i + 1 < n and text[i + 1] == "*":
+            depth = 1
+            out.extend("  ")
+            i += 2
+            while i < n and depth > 0:
+                if text[i] == "/" and i + 1 < n and text[i + 1] == "*":
+                    depth += 1
+                    out.extend("  ")
+                    i += 2
+                elif text[i] == "*" and i + 1 < n and text[i + 1] == "/":
+                    depth -= 1
+                    out.extend("  ")
+                    i += 2
+                else:
+                    out.append("\n" if text[i] == "\n" else " ")
+                    i += 1
+            continue
+
+        # Standard or raw string literal (#*"""..."""#* or #*"..."#*)
+        if ch == "#" or ch == '"':
+            hashes = 0
+            j = i
+            while j < n and text[j] == "#":
+                hashes += 1
+                j += 1
+            if j < n and text[j] == '"':
+                is_multiline = text.startswith('"""', j)
+                delim_len = 3 if is_multiline else 1
+                open_end = j + delim_len
+                close_seq = ('"' * delim_len) + ("#" * hashes)
+                escape_prefix = "\\" + ("#" * hashes)
+
+                out.append(text[i:open_end])
+                k = open_end
+                while k < n:
+                    if text.startswith(close_seq, k):
+                        out.append(close_seq)
+                        k += len(close_seq)
+                        break
+                    if text.startswith(escape_prefix, k):
+                        esc_end = k + len(escape_prefix)
+                        if esc_end < n and text[esc_end] == "(":
+                            out.append(text[k:esc_end + 1])
+                            inner, k = _scan_swift_segment(
+                                text,
+                                esc_end + 1,
+                                blank_plain_strings=blank_plain_strings,
+                                stop_on_rparen=True,
+                            )
+                            out.append(inner)
+                            continue
+                        if esc_end < n:
+                            chunk = text[k:esc_end + 1]
+                            if blank_plain_strings:
+                                out.extend("\n" if c == "\n" else " " for c in chunk)
+                            else:
+                                out.append(chunk)
+                            k = esc_end + 1
+                            continue
+                    c = text[k]
+                    out.append("\n" if c == "\n" else (" " if blank_plain_strings else c))
+                    k += 1
+                i = k
+                continue
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out), i
+
+
+def _strip_swift_comments(text: str, *, blank_plain_strings: bool = False) -> str:
+    stripped, _ = _scan_swift_segment(
+        text,
+        0,
+        blank_plain_strings=blank_plain_strings,
+        stop_on_rparen=False,
+    )
+    return stripped
+
+
+def _split_top_level_commas(text: str) -> list[str]:
+    parts: list[str] = []
+    cur: list[str] = []
+    paren = 0
+    bracket = 0
+    brace = 0
+    for ch in text:
+        if ch == "(":
+            paren += 1
+        elif ch == ")":
+            paren = max(0, paren - 1)
+        elif ch == "[":
+            bracket += 1
+        elif ch == "]":
+            bracket = max(0, bracket - 1)
+        elif ch == "{":
+            brace += 1
+        elif ch == "}":
+            brace = max(0, brace - 1)
+        elif ch == "," and paren == 0 and bracket == 0 and brace == 0:
+            parts.append("".join(cur))
+            cur = []
+            continue
+        cur.append(ch)
+    if cur:
+        parts.append("".join(cur))
+    return parts
+
+
+def _extract_action_kind_cases(core_text: str) -> list[str]:
+    clean = _strip_swift_comments(core_text, blank_plain_strings=True)
+    m = re.search(r"\benum\s+ActionKind\b[^{]*\{", clean)
+    if not m:
+        return []
+    start = m.end()
+    depth = 1
+    idx = start
+    while idx < len(clean) and depth > 0:
+        if clean[idx] == "{":
+            depth += 1
+        elif clean[idx] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        idx += 1
+    body = clean[start:idx]
+
+    cases: list[str] = []
+    for raw_stmt in re.split(r"[\n;]", body):
+        stmt = raw_stmt.strip()
+        if not stmt:
+            continue
+        case_match = re.match(r"^(?:indirect\s+)?case\s+(.+)$", stmt)
+        if not case_match:
+            continue
+        for item in _split_top_level_commas(case_match.group(1)):
+            name_match = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)", item)
+            if name_match:
+                cases.append(name_match.group(1))
+    return cases
+
+
+def _extract_all_specs_keys(catalog_text: str) -> list[str]:
+    clean = _strip_swift_comments(catalog_text, blank_plain_strings=True)
+    m = re.search(r"\bstatic\s+let\s+allSpecs\b[^=]*=\s*\[", clean)
+    if not m:
+        return []
+    idx = m.end()
+    bracket_depth = 1
+    paren_depth = 0
+    brace_depth = 0
+    keys: list[str] = []
+    n = len(clean)
+
+    while idx < n and bracket_depth > 0:
+        ch = clean[idx]
+        if ch == "[":
+            bracket_depth += 1
+            idx += 1
+            continue
+        if ch == "]":
+            bracket_depth -= 1
+            idx += 1
+            continue
+        if ch == "(":
+            paren_depth += 1
+            idx += 1
+            continue
+        if ch == ")":
+            paren_depth = max(0, paren_depth - 1)
+            idx += 1
+            continue
+        if ch == "{":
+            brace_depth += 1
+            idx += 1
+            continue
+        if ch == "}":
+            brace_depth = max(0, brace_depth - 1)
+            idx += 1
+            continue
+
+        if bracket_depth == 1 and paren_depth == 0 and brace_depth == 0 and ch == ".":
+            key_match = re.match(r"\.([A-Za-z_][A-Za-z0-9_]*)\s*:", clean[idx:])
+            if key_match:
+                keys.append(key_match.group(1))
+                idx += key_match.end()
+                continue
+
+        idx += 1
+
+    return keys
+
+
+def _find_xctest_await_violations(swift_file: Path, text: str) -> list[str]:
+    clean = _strip_swift_comments(text, blank_plain_strings=True)
+    violations: list[str] = []
+    seen_lines: set[int] = set()
+    n = len(clean)
+
+    for m in XCTEST_CALL_RE.finditer(clean):
+        line_no = clean[:m.start()].count("\n") + 1
+        paren_depth = 1
+        idx = m.end()
+        closed = False
+        while idx < n:
+            ch = clean[idx]
+            if ch == "(":
+                paren_depth += 1
+            elif ch == ")":
+                paren_depth -= 1
+                if paren_depth == 0:
+                    closed = True
+                    break
+            idx += 1
+        eol = clean.find("\n", m.end())
+        call_body = clean[m.end():idx] if closed else clean[m.end():(eol if eol != -1 else n)]
+        if re.search(r"\bawait\b", call_body) and line_no not in seen_lines:
+            seen_lines.add(line_no)
+            violations.append(
+                f"Swift 6 @autoclosure await violation in {swift_file.relative_to(ROOT)}:{line_no} ({m.group(1)})"
+            )
+
+    for line_no, line in enumerate(clean.splitlines(), 1):
+        if line_no not in seen_lines and XCTEST_SINGLE_LINE_AWAIT_RE.search(line):
+            seen_lines.add(line_no)
+            violations.append(
+                f"Swift 6 @autoclosure await violation in {swift_file.relative_to(ROOT)}:{line_no}"
+            )
+
+    return violations
+
+
+def check_swift_static_invariants() -> list[str]:
+    errors: list[str] = []
+
+    # 1. Packages/AgentCore/Sources/ forbidden framework imports
+    agentcore_sources = ROOT / "Packages/AgentCore/Sources"
+    if not agentcore_sources.is_dir():
+        errors.append("Missing directory: Packages/AgentCore/Sources")
+    else:
+        for swift_file in sorted(agentcore_sources.rglob("*.swift")):
+            clean = _strip_swift_comments(swift_file.read_text(encoding="utf-8"), blank_plain_strings=True)
+            for line_no, line in enumerate(clean.splitlines(), 1):
+                for stmt in line.split(";"):
+                    imp_match = IMPORT_STMT_RE.match(stmt)
+                    if imp_match:
+                        module_name = imp_match.group(1)
+                        if module_name in FORBIDDEN_AGENTCORE_IMPORTS:
+                            errors.append(
+                                f"Forbidden framework import '{module_name}' in {swift_file.relative_to(ROOT)}:{line_no}"
+                            )
+
+    # 2. Apps/iAgent/iAgent.entitlements must NOT contain aps-environment (free sideload safety)
+    entitlements_path = ROOT / "Apps/iAgent/iAgent.entitlements"
+    if entitlements_path.is_file():
+        ent_text = entitlements_path.read_text(encoding="utf-8")
+        if "aps-environment" in ent_text:
+            errors.append("Apps/iAgent/iAgent.entitlements must not contain 'aps-environment'")
+
+    # 3. All Tests/**/*.swift files must NOT contain XCTAssert*\([^;\n]*\bawait\b
+    test_files = [p for p in sorted(ROOT.rglob("*.swift")) if "Tests" in p.parts]
+    if not test_files:
+        errors.append("No Swift test files found under Tests directories")
+    for test_file in test_files:
+        errors.extend(_find_xctest_await_violations(test_file, test_file.read_text(encoding="utf-8")))
+
+    # 4. ActionKind cases in CoreEntities.swift must match ActionCatalog.allSpecs in ActionCatalog.swift
+    core_entities_path = ROOT / "Packages/AgentCore/Sources/AgentCore/Models/CoreEntities.swift"
+    action_catalog_path = ROOT / "Packages/AgentCore/Sources/AgentCore/Catalog/ActionCatalog.swift"
+    if not core_entities_path.is_file():
+        errors.append("Missing CoreEntities.swift for ActionKind check")
+    if not action_catalog_path.is_file():
+        errors.append("Missing ActionCatalog.swift for ActionCatalog.allSpecs check")
+    if core_entities_path.is_file() and action_catalog_path.is_file():
+        action_cases = _extract_action_kind_cases(core_entities_path.read_text(encoding="utf-8"))
+        spec_keys = _extract_all_specs_keys(action_catalog_path.read_text(encoding="utf-8"))
+        if not action_cases:
+            errors.append("Failed to parse ActionKind cases from CoreEntities.swift")
+        if not spec_keys:
+            errors.append("Failed to parse ActionCatalog.allSpecs keys from ActionCatalog.swift")
+        if action_cases and spec_keys:
+            case_set = set(action_cases)
+            spec_set = set(spec_keys)
+            if len(spec_keys) != len(spec_set):
+                errors.append("Duplicate keys detected in ActionCatalog.allSpecs")
+            if len(action_cases) > len(spec_keys):
+                errors.append(
+                    f"ActionKind case count ({len(action_cases)}) exceeds ActionCatalog.allSpecs count ({len(spec_keys)})"
+                )
+            missing = sorted(case_set - spec_set)
+            if missing:
+                errors.append(f"ActionKind cases missing from ActionCatalog.allSpecs: {missing}")
+            unknown = sorted(spec_set - case_set)
+            if unknown:
+                errors.append(f"Unknown keys in ActionCatalog.allSpecs not in ActionKind: {unknown}")
+
+    return errors
+
+
 def deterministic_route(utterance: str, untrusted_attachment: str | None = None) -> tuple[str, object]:
     norm = normalize_turkic(utterance.strip())
 
@@ -161,6 +529,31 @@ def deterministic_route(utterance: str, untrusted_attachment: str | None = None)
 
     if any(k in norm for k in ["instagram", "banka havalesi", "para gonder", "butonuna dokun", "whatsapp gecmisimi oku", "apple notlarimi sil", "mesajlari oxu"]):
         return ("unsupported", "Desteklenmeyen üçüncü taraf ekran/arşiv erişimi.")
+
+    if any(k in norm for k in ["sabah brifingi", "gunluk brifing", "aksam brifingi"]):
+        return ("plan", [{"id": "brief1", "action": "briefing.compose", "title": "Günlük Brifing", "dependsOn": []}])
+
+    if any(k in norm for k in ["hafizaya kaydet:", "bunu hatirla:", "yaddasda saxla:"]):
+        content = utterance.split(":", 1)[1].strip() if ":" in utterance else utterance.strip()
+        if not content:
+            return ("clarify", "Hafızaya neyi kaydetmemi istersin?")
+        return ("plan", [{"id": "mem_w", "action": "memory.remember", "noteContent": content, "dependsOn": []}])
+
+    if "hafizadan bul:" in norm or "tercihlerimi goster" in norm:
+        if "hafizadan bul:" in norm and ":" in utterance:
+            query = utterance.split(":", 1)[1].strip() or "tercihler"
+        else:
+            query = "tercihler"
+        return ("plan", [{"id": "mem_r", "action": "memory.recall", "query": query, "dependsOn": []}])
+
+    if "alarm kur" in norm:
+        time_match = re.search(r"\b(\d{1,2})[:.](\d{2})\b", norm)
+        if time_match:
+            hour = int(time_match.group(1))
+            minute = int(time_match.group(2))
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                return ("plan", [{"id": "alm1", "action": "alarm.create", "title": "JARVIS Alarmı", "due": f"2026-11-22T{hour:02d}:{minute:02d}:00+04:00", "dependsOn": []}])
+        return ("clarify", "Alarm için geçerli bir saat belirtir misin?")
 
     if "not al" in norm or "not ekle" in norm or "qeyd et" in norm:
         return ("plan", [{"id": "n1", "action": "notes.create", "noteContent": utterance, "dependsOn": []}])
@@ -244,6 +637,36 @@ def run_chapter9_scenarios() -> list[str]:
     )
     if k9 != "plan" or len(p9) != 1 or p9[0]["action"] != "text.summarizeAndNote":
         errors.append("Scenario 9 failed: shared document triggered non-note action")
+
+    return errors
+
+
+def run_jarvis_regression_scenarios() -> list[str]:
+    errors: list[str] = []
+
+    k_brief, p_brief = deterministic_route("Sabah brifingimi oku")
+    if k_brief != "plan" or not isinstance(p_brief, list) or len(p_brief) != 1 or p_brief[0].get("action") != "briefing.compose":
+        errors.append(f"JARVIS regression failed (briefing): {k_brief}, {p_brief}")
+
+    k_mem, p_mem = deterministic_route("Hafızaya kaydet: kahve tercihim şekersiz")
+    if (
+        k_mem != "plan"
+        or not isinstance(p_mem, list)
+        or len(p_mem) != 1
+        or p_mem[0].get("action") != "memory.remember"
+        or p_mem[0].get("noteContent") != "kahve tercihim şekersiz"
+    ):
+        errors.append(f"JARVIS regression failed (memory): {k_mem}, {p_mem}")
+
+    k_alarm, p_alarm = deterministic_route("Alarm kur 07:30")
+    if (
+        k_alarm != "plan"
+        or not isinstance(p_alarm, list)
+        or len(p_alarm) != 1
+        or p_alarm[0].get("action") != "alarm.create"
+        or "07:30" not in str(p_alarm[0].get("due", ""))
+    ):
+        errors.append(f"JARVIS regression failed (alarm): {k_alarm}, {p_alarm}")
 
     return errors
 
@@ -339,15 +762,26 @@ def run_beta_datasets() -> tuple[int, int, list[str]]:
 
 
 def main() -> int:
-    all_errors: list[str] = []
-    all_errors.extend(check_project_structure())
-    all_errors.extend(check_no_hardcoded_secrets())
-    all_errors.extend(run_chapter9_scenarios())
+    structure_errors = check_project_structure()
+    secret_errors = check_no_hardcoded_secrets()
+    static_errors = check_swift_static_invariants()
+    chapter9_errors = run_chapter9_scenarios()
+    jarvis_errors = run_jarvis_regression_scenarios()
     tr_pass, az_pass, dataset_errors = run_beta_datasets()
-    all_errors.extend(dataset_errors)
+
+    all_errors = [
+        *structure_errors,
+        *secret_errors,
+        *static_errors,
+        *chapter9_errors,
+        *jarvis_errors,
+        *dataset_errors,
+    ]
 
     print(f"Structure & Security Checks: {'PASS' if not all_errors else 'FAIL'}")
-    print(f"Chapter 9 Scenarios: 9/9 PASS" if not any('Scenario' in e for e in all_errors) else "Chapter 9 Scenarios: FAIL")
+    print(f"Swift Static Invariants: {'PASS' if not static_errors else 'FAIL'}")
+    print("Chapter 9 Scenarios: 9/9 PASS" if not chapter9_errors else "Chapter 9 Scenarios: FAIL")
+    print("JARVIS Deterministic Scenarios: 3/3 PASS" if not jarvis_errors else "JARVIS Deterministic Scenarios: FAIL")
     print(f"Turkish Beta Dataset: {tr_pass}/30 PASS (threshold >= 27/30)")
     print(f"Azerbaijani Dataset: {az_pass}/10 PASS")
     print("Safety Violations -> wrong_recipient=0 unconfirmed_external=0 unauthorized_transfer=0 fake_success=0")
