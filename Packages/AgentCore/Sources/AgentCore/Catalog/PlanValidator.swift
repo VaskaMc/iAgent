@@ -33,6 +33,21 @@ public struct RawModelStepInput: Codable, Equatable, Sendable {
         self.parameters = parameters
         self.dependsOn = dependsOn
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.action = try container.decode(String.self, forKey: .action)
+        self.parameters = try container.decodeIfPresent(ActionParameters.self, forKey: .parameters) ?? ActionParameters()
+        self.dependsOn = try container.decodeIfPresent([String].self, forKey: .dependsOn) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case action
+        case parameters
+        case dependsOn
+    }
 }
 
 /// Tüm adım ve parametre alanlarını tip-etiketli / uzunluk-önekli kanonik SHA-256 ile özetler.

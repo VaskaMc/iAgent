@@ -668,7 +668,7 @@ final class JarvisAgentCoreTests: XCTestCase {
         let taskId = UUID()
         let compactor = JarvisContextCompactor(budgetConfig: .ios26OnDevice4096)
 
-        let turns = (1...45).map { idx in
+        let turns = (1...100).map { idx in
             TurnRecord(
                 taskId: taskId,
                 role: idx.isMultiple(of: 2) ? .assistant : .user,

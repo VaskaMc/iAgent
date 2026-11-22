@@ -8,6 +8,7 @@ workflows:
     scripts:
       - name: Run Swift Package Unit Tests
         script: |
+          set -euo pipefail
           swift test --package-path Packages/AgentCore
           swift test --package-path Packages/ModelProviders
           swift test --package-path Packages/PhoneActions

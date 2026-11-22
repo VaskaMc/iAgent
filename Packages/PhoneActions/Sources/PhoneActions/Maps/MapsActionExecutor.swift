@@ -129,7 +129,7 @@ public final class LiveMapKitBackend: MapsSearchAndHandoffProtocol, ETACalculati
         #if os(iOS)
         return await item.openInMaps(launchOptions: options, from: nil)
         #else
-        return item.openInMaps(launchOptions: options)
+        return await item.openInMaps(launchOptions: options)
         #endif
     }
 

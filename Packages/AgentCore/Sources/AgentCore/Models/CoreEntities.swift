@@ -162,6 +162,47 @@ public struct ActionParameters: Codable, Equatable, Sendable {
         self.urlString = urlString
         self.locationRequested = locationRequested
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title)
+        self.noteContent = try container.decodeIfPresent(String.self, forKey: .noteContent)
+        self.query = try container.decodeIfPresent(String.self, forKey: .query)
+        self.startISO8601 = try container.decodeIfPresent(String.self, forKey: .startISO8601)
+        self.durationMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinutes)
+        self.dueISO8601 = try container.decodeIfPresent(String.self, forKey: .dueISO8601)
+        self.recipientQuery = try container.decodeIfPresent(String.self, forKey: .recipientQuery)
+        self.resolvedRecipientHandle = try container.decodeIfPresent(String.self, forKey: .resolvedRecipientHandle)
+        self.body = try container.decodeIfPresent(String.self, forKey: .body)
+        self.subject = try container.decodeIfPresent(String.self, forKey: .subject)
+        self.destinationQuery = try container.decodeIfPresent(String.self, forKey: .destinationQuery)
+        self.transportMode = try container.decodeIfPresent(String.self, forKey: .transportMode)
+        self.shortcutLabel = try container.decodeIfPresent(String.self, forKey: .shortcutLabel)
+        self.shortcutInput = try container.decodeIfPresent(String.self, forKey: .shortcutInput)
+        self.untrustedSourceText = try container.decodeIfPresent(String.self, forKey: .untrustedSourceText)
+        self.urlString = try container.decodeIfPresent(String.self, forKey: .urlString)
+        self.locationRequested = try container.decodeIfPresent(Bool.self, forKey: .locationRequested) ?? false
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title
+        case noteContent
+        case query
+        case startISO8601
+        case durationMinutes
+        case dueISO8601
+        case recipientQuery
+        case resolvedRecipientHandle
+        case body
+        case subject
+        case destinationQuery
+        case transportMode
+        case shortcutLabel
+        case shortcutInput
+        case untrustedSourceText
+        case urlString
+        case locationRequested
+    }
 }
 
 public struct ActionStep: Codable, Identifiable, Equatable, Sendable {
