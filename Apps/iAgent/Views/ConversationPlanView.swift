@@ -138,7 +138,7 @@ struct ConversationPlanView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(advisory.messageTR)
                         .font(.caption)
-                        .foregroundStyle(advisory.severity == .blocking ? .red : .primary)
+                        .foregroundStyle(advisory.severity == .blocking ? Color.red : Color.primary)
 
                     if !planState.isFinished, !advisory.suggestedPatches.isEmpty {
                         HStack(spacing: 6) {
@@ -187,7 +187,7 @@ struct ConversationPlanView: View {
             }
             Text(report.summaryTR)
                 .font(.caption)
-                .foregroundStyle(report.hasSecurityVeto ? .red : .secondary)
+                .foregroundStyle(report.hasSecurityVeto ? Color.red : Color.secondary)
 
             ForEach(report.opinions) { opinion in
                 HStack(alignment: .top, spacing: 6) {
@@ -196,7 +196,7 @@ struct ConversationPlanView: View {
                         .frame(width: 76, alignment: .leading)
                     Text(opinion.notesTR)
                         .font(.caption2)
-                        .foregroundStyle(opinion.vetoed ? .red : .secondary)
+                        .foregroundStyle(opinion.vetoed ? Color.red : Color.secondary)
                     Spacer()
                     Text("\(Int((opinion.confidence * 100).rounded()))%")
                         .font(.caption2.monospacedDigit())

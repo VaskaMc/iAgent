@@ -91,7 +91,7 @@ struct CapabilitiesSettingsView: View {
                 if let memoryFeedbackMessage {
                     Text(memoryFeedbackMessage)
                         .font(.caption)
-                        .foregroundStyle(memoryFeedbackMessage.hasPrefix("Reddedildi") ? .red : .secondary)
+                        .foregroundStyle(memoryFeedbackMessage.hasPrefix("Reddedildi") ? Color.red : Color.secondary)
                 }
                 if !coordinator.memoryEntries.isEmpty {
                     ForEach(coordinator.memoryEntries) { entry in

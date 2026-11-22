@@ -21,7 +21,7 @@ struct HistoryView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(coordinator.isAuditTrailVerified ? "Kriptografik Denetim İzi: Doğrulandı" : "Bütünlük Uyarısı")
                             .font(.subheadline.bold())
-                            .foregroundStyle(coordinator.isAuditTrailVerified ? .primary : .red)
+                            .foregroundStyle(coordinator.isAuditTrailVerified ? Color.primary : Color.red)
                         Text("\(coordinator.auditTrail.allEntries().count) zincirli makbuz · SHA-256 + HMAC")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
